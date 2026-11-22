@@ -1,0 +1,6 @@
+{
+  "name": "Jetson ROS Robot Studio",
+  "description": "Mô phỏng 3D tương tác phần cứng, trực quan hóa luồng dữ liệu kiến trúc điều khiển kép Não - Tiểu não và đo kiểm hiệu năng suy luận AI TensorRT của robot Waveshare JetBot ROS AI Kit.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

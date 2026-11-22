@@ -1,0 +1,2881 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Waveshare JetBot - Mô Phỏng 3D Thế Giới Mở Địa Hình Tự Nhiên & AI</title>
+  <meta name="description" content="Ứng dụng mô phỏng 3D tương tác Waveshare JetBot ROS AI Kit trên thế giới mở địa hình tự nhiên độ chi tiết cao, gia tốc tăng dần thực tế, giao diện Light Mode hiện đại, điều khiển ROS /cmd_vel và 29 ảnh Drive." />
+  <meta property="og:title" content="Waveshare JetBot - Mô Phỏng 3D Thế Giới Mở Địa Hình Tự Nhiên & AI" />
+  <meta property="og:description" content="Thử nghiệm lái xe JetBot gia tốc tăng dần mượt mà, vượt địa hình đồi núi, vách đá, cầu gỗ, kiểm tra hiệu năng AI TensorRT và soi linh kiện thực tế từ Google Drive." />
+  <meta property="og:type" content="website" />
+  <meta name="twitter:card" content="summary_large_image" />
+
+  <style>
+    :root {
+      --bg-canvas: #f0f7ff;
+      --panel-bg: rgba(255, 255, 255, 0.88);
+      --panel-border: rgba(15, 23, 42, 0.08);
+      --panel-shadow: 0 12px 36px -6px rgba(15, 23, 42, 0.1), 0 4px 12px rgba(15, 23, 42, 0.04);
+      --accent-cyan: #0284c7;
+      --accent-green: #059669;
+      --accent-orange: #ea580c;
+      --accent-red: #dc2626;
+      --accent-purple: #7c3aed;
+      --text-main: #0f172a;
+      --text-sub: #334155;
+      --text-muted: #64748b;
+      --font-mono: 'JetBrains Mono', 'Fira Code', 'SF Mono', Consolas, monospace;
+      --font-sans: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: var(--bg-canvas);
+      color: var(--text-main);
+      font-family: var(--font-sans);
+    }
+
+    #webgl-container {
+      width: 100%;
+      height: 100%;
+      position: absolute;
+      top: 0;
+      left: 0;
+      z-index: 1;
+      cursor: grab;
+    }
+    #webgl-container:active {
+      cursor: grabbing;
+    }
+
+    /* LỚP PHỦ GIAO DIỆN HUD SÁNG (LIGHT-MODE OVERLAY) */
+    .hud-layer {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      z-index: 10;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 12px 16px;
+    }
+
+    .interactive-el {
+      pointer-events: auto;
+    }
+
+    /* BẢNG KÍNH MỜ LIGHT MODE GLASSMORPHISM */
+    .glass-panel {
+      background: var(--panel-bg);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid var(--panel-border);
+      border-radius: 14px;
+      box-shadow: var(--panel-shadow);
+      transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    /* THANH TIÊU ĐỀ TRÊN CÙNG */
+    .header-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      padding: 9px 16px;
+      max-width: 1600px;
+      margin: 0 auto;
+      width: 100%;
+    }
+
+    .brand-title {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .status-beacon {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: var(--accent-green);
+      box-shadow: 0 0 10px rgba(5, 150, 105, 0.5);
+      animation: pulse-beacon 2.2s infinite ease-in-out;
+    }
+
+    @keyframes pulse-beacon {
+      0%, 100% { transform: scale(0.95); opacity: 0.8; }
+      50% { transform: scale(1.18); opacity: 1; box-shadow: 0 0 16px rgba(5, 150, 105, 0.8); }
+    }
+
+    .title-h1 {
+      font-size: 14px;
+      font-weight: 800;
+      letter-spacing: 0.8px;
+      text-transform: uppercase;
+      color: #0f172a;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .title-badge {
+      font-size: 10px;
+      font-family: var(--font-mono);
+      background: #e0f2fe;
+      color: #0369a1;
+      padding: 2px 7px;
+      border-radius: 6px;
+      font-weight: 700;
+    }
+
+    .title-sub {
+      font-size: 10.5px;
+      color: var(--text-muted);
+      font-family: var(--font-mono);
+      letter-spacing: 0.3px;
+    }
+
+    .author-credit {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      font-weight: 700;
+      color: #c2410c;
+      background: #fff7ed;
+      border: 1px solid #fed7aa;
+      padding: 2px 9px;
+      border-radius: 6px;
+      margin-bottom: 3px;
+      letter-spacing: 0.2px;
+    }
+
+    /* CÔNG TẮC CHUYỂN ĐỔI HIỆU NĂNG AI */
+    .ai-toggle-container {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      background: rgba(241, 245, 249, 0.9);
+      padding: 5px 12px;
+      border-radius: 10px;
+      border: 1px solid rgba(15, 23, 42, 0.08);
+    }
+
+    .toggle-label {
+      font-size: 10.5px;
+      font-family: var(--font-mono);
+      font-weight: 700;
+      color: var(--text-muted);
+    }
+
+    .switch {
+      position: relative;
+      display: inline-block;
+      width: 42px;
+      height: 20px;
+    }
+
+    .switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .slider {
+      position: absolute;
+      cursor: pointer;
+      inset: 0;
+      background-color: #f97316;
+      transition: .3s cubic-bezier(0.4, 0, 0.2, 1);
+      border-radius: 20px;
+    }
+
+    .slider:before {
+      position: absolute;
+      content: "";
+      height: 14px;
+      width: 14px;
+      left: 3px;
+      bottom: 3px;
+      background-color: white;
+      transition: .3s cubic-bezier(0.4, 0, 0.2, 1);
+      border-radius: 50%;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.25);
+    }
+
+    input:checked + .slider {
+      background-color: #059669;
+    }
+
+    input:checked + .slider:before {
+      transform: translateX(22px);
+    }
+
+    /* NÚT THAO TÁC HIỆN ĐẠI */
+    .btn-action {
+      background: #ffffff;
+      border: 1px solid rgba(15, 23, 42, 0.12);
+      color: #0f172a;
+      padding: 6px 13px;
+      border-radius: 8px;
+      font-size: 11px;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s ease;
+      font-family: var(--font-mono);
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    }
+
+    .btn-action:hover {
+      background: #f8fafc;
+      border-color: #0284c7;
+      color: #0284c7;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(2, 132, 199, 0.15);
+    }
+
+    .btn-action.active {
+      background: #0284c7;
+      color: #ffffff;
+      border-color: #0284c7;
+      box-shadow: 0 4px 14px rgba(2, 132, 199, 0.3);
+    }
+
+    /* KHUNG NỘI DUNG CHÍNH (GIỮA) */
+    .middle-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 16px;
+      max-width: 1600px;
+      margin: 6px auto auto auto;
+      width: 100%;
+      pointer-events: none;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    /* BẢNG TELEMETRY VẬN TỐC, TỌA ĐỘ VÀ NGUỒN PIN (BÊN TRÁI) */
+    .telemetry-card {
+      width: 325px;
+      padding: 13px;
+      display: flex;
+      flex-direction: column;
+      gap: 9px;
+      max-height: calc(100vh - 220px);
+      overflow-y: auto;
+    }
+
+    .card-title-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+      padding-bottom: 6px;
+    }
+
+    .card-title {
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.6px;
+      text-transform: uppercase;
+      color: #0f172a;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .badge-mode {
+      font-size: 9px;
+      font-family: var(--font-mono);
+      font-weight: 700;
+      padding: 2px 7px;
+      border-radius: 5px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .badge-fp16 {
+      background: #d1fae5;
+      color: #047857;
+      border: 1px solid #6ee7b7;
+    }
+
+    .badge-fp32 {
+      background: #fee2e2;
+      color: #b91c1c;
+      border: 1px solid #fca5a5;
+    }
+
+    .metric-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+    }
+
+    .metric-box {
+      background: #f8fafc;
+      border: 1px solid rgba(15, 23, 42, 0.06);
+      border-radius: 8px;
+      padding: 7px 9px;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .metric-box.full-width {
+      grid-column: span 2;
+    }
+
+    .metric-label {
+      font-size: 9.5px;
+      color: var(--text-muted);
+      font-family: var(--font-mono);
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+    }
+
+    .metric-value {
+      font-size: 15px;
+      font-family: var(--font-mono);
+      font-weight: 800;
+      color: #0f172a;
+      display: flex;
+      align-items: baseline;
+      gap: 4px;
+    }
+
+    .metric-unit {
+      font-size: 9.5px;
+      font-weight: 500;
+      color: var(--text-muted);
+    }
+
+    /* THANH TIẾN ĐỘ BƯỚM GA / GA ĐỘNG CƠ (PROGRESSIVE THROTTLE GAUGE) */
+    .throttle-container {
+      margin-top: 2px;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+
+    .throttle-track {
+      width: 100%;
+      height: 7px;
+      background: #e2e8f0;
+      border-radius: 4px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .throttle-fill {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, #0284c7, #059669, #eab308);
+      border-radius: 4px;
+      transition: width 0.08s linear;
+    }
+
+    .throttle-fill.boost {
+      background: linear-gradient(90deg, #059669, #7c3aed, #ec4899);
+      box-shadow: 0 0 8px rgba(124, 58, 237, 0.6);
+    }
+
+    /* RADAR BẢN ĐỒ THẾ GIỚI MỞ THỜI GIAN THỰC (MINI-MAP) */
+    .minimap-container {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: #ffffff;
+      border: 1px solid rgba(15, 23, 42, 0.08);
+      border-radius: 10px;
+      padding: 7px 10px;
+    }
+
+    #radar-canvas {
+      width: 68px;
+      height: 68px;
+      background: #f1f5f9;
+      border-radius: 50%;
+      border: 1.5px solid #0284c7;
+      box-shadow: 0 2px 8px rgba(2, 132, 199, 0.2);
+    }
+
+    /* BẢNG GIÁM SÁT LINH KIỆN VỚI ẢNH MINH HỌA THỰC TẾ (BÊN PHẢI) */
+    .inspector-card {
+      width: 350px;
+      padding: 15px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      max-height: calc(100vh - 165px);
+      overflow-y: auto;
+    }
+
+    .inspector-card::-webkit-scrollbar, .telemetry-card::-webkit-scrollbar {
+      width: 4px;
+    }
+    .inspector-card::-webkit-scrollbar-thumb, .telemetry-card::-webkit-scrollbar-thumb {
+      background: rgba(15, 23, 42, 0.15);
+      border-radius: 4px;
+    }
+
+    .part-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .part-icon {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      background: #e0f2fe;
+      border: 1px solid #7dd3fc;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 15px;
+      flex-shrink: 0;
+    }
+
+    .part-name {
+      font-size: 13px;
+      font-weight: 800;
+      letter-spacing: 0.3px;
+      color: #0f172a;
+    }
+
+    .part-role {
+      font-size: 10px;
+      color: #0284c7;
+      font-family: var(--font-mono);
+      font-weight: 700;
+    }
+
+    /* KHUNG ẢNH MINH HỌA THỰC TẾ TRONG INSPECTOR */
+    .photo-preview-box {
+      position: relative;
+      width: 100%;
+      height: 172px;
+      border-radius: 10px;
+      overflow: hidden;
+      border: 1px solid rgba(15, 23, 42, 0.12);
+      background: #ffffff;
+      cursor: pointer;
+    }
+
+    .photo-preview-box img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      transition: transform 0.35s ease;
+    }
+
+    .photo-caption {
+      font-size: 10px;
+      color: #475569;
+      font-family: var(--font-mono);
+      line-height: 1.35;
+      background: #f1f5f9;
+      padding: 5px 8px;
+      border-radius: 6px;
+      border-left: 2.5px solid #0284c7;
+    }
+
+    .photo-preview-box:hover img {
+      transform: scale(1.04);
+    }
+
+    .photo-badge-source {
+      position: absolute;
+      top: 8px;
+      left: 8px;
+      background: rgba(255, 255, 255, 0.92);
+      backdrop-filter: blur(4px);
+      border: 1px solid rgba(5, 150, 105, 0.3);
+      color: #047857;
+      font-size: 9px;
+      font-family: var(--font-mono);
+      padding: 2px 7px;
+      border-radius: 5px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-weight: 700;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+    }
+
+    .photo-click-hint {
+      position: absolute;
+      bottom: 8px;
+      right: 8px;
+      background: rgba(255, 255, 255, 0.92);
+      border: 1px solid rgba(2, 132, 199, 0.3);
+      color: #0369a1;
+      font-size: 9px;
+      font-family: var(--font-mono);
+      padding: 2px 7px;
+      border-radius: 5px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-weight: 600;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+    }
+
+    /* CAROUSEL THUMBNAILS DƯỚI ẢNH CHÍNH */
+    .photo-thumb-strip {
+      display: flex;
+      gap: 6px;
+      overflow-x: auto;
+      padding-bottom: 2px;
+    }
+    .photo-thumb-strip::-webkit-scrollbar {
+      height: 3px;
+    }
+    .photo-thumb-strip::-webkit-scrollbar-thumb {
+      background: rgba(15, 23, 42, 0.2);
+      border-radius: 3px;
+    }
+
+    .thumb-item {
+      width: 44px;
+      height: 44px;
+      border-radius: 6px;
+      overflow: hidden;
+      border: 1px solid rgba(15, 23, 42, 0.15);
+      cursor: pointer;
+      flex-shrink: 0;
+      opacity: 0.7;
+      transition: all 0.2s ease;
+    }
+    .thumb-item:hover, .thumb-item.active {
+      opacity: 1;
+      border-color: #0284c7;
+      box-shadow: 0 0 8px rgba(2, 132, 199, 0.4);
+    }
+    .thumb-item img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .part-desc {
+      font-size: 11px;
+      color: #334155;
+      line-height: 1.55;
+      background: #f8fafc;
+      padding: 9px 11px;
+      border-radius: 8px;
+      border: 1px solid rgba(15, 23, 42, 0.06);
+    }
+
+    .spec-table {
+      font-size: 10px;
+      font-family: var(--font-mono);
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .spec-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 2.5px 0;
+      border-bottom: 1px dashed rgba(15, 23, 42, 0.1);
+    }
+
+    .spec-key {
+      color: var(--text-muted);
+    }
+
+    .spec-val {
+      font-weight: 700;
+      color: #0f172a;
+      text-align: right;
+    }
+
+    /* BẢNG ĐIỀU KHIỂN TERMINAL & PHÍM ẢO (GÓC DƯỚI) */
+    .bottom-control-area {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      gap: 16px;
+      max-width: 1600px;
+      margin: 0 auto;
+      width: 100%;
+    }
+
+    /* TERMINAL ROS COMMAND CONSOLE (/cmd_vel) */
+    .terminal-console {
+      width: 480px;
+      max-height: 205px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      border-color: rgba(15, 23, 42, 0.12);
+    }
+
+    .terminal-header {
+      padding: 6px 12px;
+      background: #f1f5f9;
+      border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 10.5px;
+      font-family: var(--font-mono);
+      color: #0369a1;
+      font-weight: 700;
+    }
+
+    .terminal-body {
+      padding: 7px 12px;
+      height: 100px;
+      overflow-y: auto;
+      font-family: var(--font-mono);
+      font-size: 10.5px;
+      color: #334155;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      background: #ffffff;
+    }
+
+    .terminal-body::-webkit-scrollbar {
+      width: 3px;
+    }
+    .terminal-body::-webkit-scrollbar-thumb {
+      background: rgba(15, 23, 42, 0.2);
+    }
+
+    .term-log {
+      line-height: 1.35;
+      word-break: break-all;
+    }
+    .term-log.info { color: #0284c7; }
+    .term-log.success { color: #059669; font-weight: 600; }
+    .term-log.warn { color: #d97706; }
+    .term-log.error { color: #dc2626; }
+    .term-log.user { color: #0f172a; font-weight: 700; }
+
+    .terminal-input-bar {
+      display: flex;
+      align-items: center;
+      padding: 5px 10px;
+      background: #f8fafc;
+      border-top: 1px solid rgba(15, 23, 42, 0.08);
+      gap: 8px;
+    }
+
+    .terminal-prompt {
+      color: #059669;
+      font-family: var(--font-mono);
+      font-weight: 700;
+      font-size: 11px;
+    }
+
+    .terminal-input {
+      flex: 1;
+      background: transparent;
+      border: none;
+      outline: none;
+      color: #0f172a;
+      font-family: var(--font-mono);
+      font-size: 11px;
+    }
+
+    .terminal-btn-send {
+      background: #e0f2fe;
+      border: 1px solid #7dd3fc;
+      color: #0369a1;
+      padding: 3px 8px;
+      border-radius: 5px;
+      font-size: 10px;
+      font-family: var(--font-mono);
+      cursor: pointer;
+      font-weight: 700;
+    }
+    .terminal-btn-send:hover {
+      background: #0284c7;
+      color: #ffffff;
+    }
+
+    /* PHÍM ĐIỀU HƯỚNG ẢO & HƯỚNG DẪN BÀN PHÍM */
+    .drive-keypad-panel {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 8px 14px;
+    }
+
+    .key-dpad {
+      display: grid;
+      grid-template-columns: repeat(3, 34px);
+      grid-template-rows: repeat(2, 34px);
+      gap: 4px;
+    }
+
+    .dpad-btn {
+      background: #f8fafc;
+      border: 1px solid rgba(15, 23, 42, 0.12);
+      color: #0f172a;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: var(--font-mono);
+      font-weight: 800;
+      font-size: 11px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .dpad-btn:hover, .dpad-btn:active, .dpad-btn.pressed {
+      background: #0284c7;
+      color: #ffffff;
+      border-color: #0284c7;
+      box-shadow: 0 2px 8px rgba(2, 132, 199, 0.4);
+      transform: scale(0.95);
+    }
+    .dpad-btn.stop-btn {
+      background: #fee2e2;
+      border-color: #fca5a5;
+      color: #b91c1c;
+    }
+    .dpad-btn.stop-btn:hover, .dpad-btn.stop-btn:active {
+      background: #dc2626;
+      color: #ffffff;
+    }
+
+    .key-hints {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      font-family: var(--font-mono);
+      font-size: 9.5px;
+      color: var(--text-muted);
+    }
+
+    .key-tag {
+      background: #e2e8f0;
+      padding: 1px 5px;
+      border-radius: 4px;
+      color: #0f172a;
+      font-weight: 700;
+    }
+
+    /* THANH CHÂN TRANG */
+    .footer-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      max-width: 1600px;
+      margin: 8px auto 0 auto;
+      width: 100%;
+      gap: 14px;
+    }
+
+    .legend-container {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      font-size: 10.5px;
+      font-family: var(--font-mono);
+      color: var(--text-muted);
+      padding: 6px 14px;
+      border-radius: 9px;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      cursor: pointer;
+      transition: color 0.2s ease;
+    }
+    .legend-item:hover {
+      color: #0f172a;
+      font-weight: 600;
+    }
+
+    .legend-dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 2.5px;
+    }
+
+    .camera-presets {
+      display: flex;
+      gap: 6px;
+    }
+
+    .btn-preset {
+      background: #ffffff;
+      border: 1px solid rgba(15, 23, 42, 0.12);
+      color: #334155;
+      padding: 5px 11px;
+      border-radius: 6px;
+      font-size: 10.5px;
+      font-family: var(--font-mono);
+      cursor: pointer;
+      transition: all 0.2s ease;
+      font-weight: 600;
+    }
+
+    .btn-preset:hover, .btn-preset.active {
+      background: #0284c7;
+      color: #ffffff;
+      border-color: #0284c7;
+    }
+
+    /* TOOLTIP RÊ CHUỘT */
+    #hover-tooltip {
+      position: absolute;
+      padding: 4px 9px;
+      background: rgba(15, 23, 42, 0.9);
+      border: 1px solid #38bdf8;
+      border-radius: 6px;
+      font-family: var(--font-mono);
+      font-size: 10px;
+      color: #ffffff;
+      pointer-events: none;
+      z-index: 50;
+      display: none;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+      transform: translate(-50%, -140%);
+    }
+
+
+
+    /* FULLSCREEN PHOTO PREVIEW MODAL */
+    #photo-enlarge-modal {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.92);
+      z-index: 150;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+    #photo-enlarge-img {
+      max-width: 90vw;
+      max-height: 85vh;
+      object-fit: contain;
+      border-radius: 12px;
+      border: 2px solid #ffffff;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+    }
+
+    /* RESPONSIVE DESIGN */
+    @media (max-width: 1080px) {
+      .middle-row {
+        flex-direction: column;
+        align-items: stretch;
+      }
+      .telemetry-card, .inspector-card {
+        width: 100%;
+        max-height: 260px;
+      }
+      .bottom-control-area {
+        flex-direction: column;
+        align-items: stretch;
+      }
+      .terminal-console {
+        width: 100%;
+      }
+      .header-bar, .footer-bar {
+        flex-direction: column;
+        align-items: stretch;
+      }
+      .legend-container {
+        display: none;
+      }
+    }
+  </style>
+
+  <!-- Import maps Three.js và GSAP từ unpkg -->
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+        "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/",
+        "gsap": "https://unpkg.com/gsap@3.12.5/index.js"
+      }
+    }
+  </script>
+</head>
+<body>
+  <!-- Container chứa Canvas WebGL 3D -->
+  <div id="webgl-container"></div>
+
+  <!-- Tooltip tương tác Raycasting khi rê chuột -->
+  <div id="hover-tooltip">Tên linh kiện</div>
+
+  <!-- LỚP PHỦ GIAO DIỆN HUD SÁNG -->
+  <div class="hud-layer">
+    <!-- THANH TIÊU ĐỀ TRÊN CÙNG -->
+    <header class="header-bar glass-panel interactive-el">
+      <div class="brand-title">
+        <div class="status-beacon" id="status-beacon"></div>
+        <div>
+          <div class="author-credit">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>
+            <span>Lư Minh Hảo • Trường Tiểu học, THCS và THPT FPT Hậu Giang</span>
+          </div>
+          <div class="title-h1">
+            <span>Waveshare JetBot ROS AI Kit</span>
+            <span class="title-badge">Thế Giới Mở Chi Tiết</span>
+          </div>
+          <div class="title-sub" id="mode-subtitle">Gia Tốc Tăng Dần • Địa Hình Chi Tiết Cao • Minh Họa Phần Cứng</div>
+        </div>
+      </div>
+
+      <!-- Nút thao tác & Công tắc chuyển đổi AI -->
+      <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+        <!-- Nút Tách Tầng / Thu Gọn (Exploded View) -->
+        <button id="btn-explode" class="btn-action" title="Tách rời các tầng phần cứng để lộ não và tiểu não">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2v20M2 12h20M4.93 4.93l14.14 14.14M4.93 19.07l14.14-14.14"/></svg>
+          <span id="explode-text">Tách Tầng</span>
+        </button>
+
+        <!-- Công tắc Hiệu năng Suy luận AI (FP32 vs TensorRT FP16) -->
+        <div class="ai-toggle-container">
+          <span class="toggle-label" id="label-fp32" style="color: #ea580c;">PyTorch (FP32)</span>
+          <label class="switch">
+            <input type="checkbox" id="ai-toggle" checked />
+            <span class="slider"></span>
+          </label>
+          <span class="toggle-label" id="label-fp16" style="color: #059669; font-weight: 800;">TensorRT (FP16)</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- NỘI DUNG CHÍNH: BẢNG TELEMETRY VÀ BẢNG GIÁM SÁT LINH KIỆN -->
+    <div class="middle-row">
+      <!-- BÊN TRÁI: Chỉ số Telemetry Vận tốc, Bướm ga, Tọa độ, Mini-map Radar -->
+      <div class="telemetry-card glass-panel interactive-el" id="telemetry-panel">
+        <div class="card-title-bar">
+          <div class="card-title">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+            <span>Telemetry Điều Tốc ROS</span>
+          </div>
+          <span class="badge-mode badge-fp16" id="perf-badge">TỐI ƯU FP16</span>
+        </div>
+
+        <div class="metric-grid">
+          <!-- Vận tốc tuyến tính linear.x (m/s & km/h) -->
+          <div class="metric-box">
+            <span class="metric-label">Vận Tốc Tuyến Tính</span>
+            <div class="metric-value">
+              <span id="val-linear-x" style="color: #0284c7;">0.00</span>
+              <span class="metric-unit">m/s</span>
+            </div>
+            <div style="font-size: 9.5px; font-family: var(--font-mono); color: var(--text-muted);" id="val-linear-kmh">0.0 km/h</div>
+          </div>
+
+          <!-- Vận tốc góc angular.z -->
+          <div class="metric-box">
+            <span class="metric-label">Vận Tốc Góc</span>
+            <div class="metric-value">
+              <span id="val-angular-z" style="color: #d97706;">0.00</span>
+              <span class="metric-unit">rad/s</span>
+            </div>
+            <div style="font-size: 9.5px; font-family: var(--font-mono); color: var(--text-muted);" id="val-gear-mode">Mo (Neutral)</div>
+          </div>
+
+          <!-- THANH ĐIỀU TỐC GA TĂNG DẦN (PROGRESSIVE THROTTLE GAUGE) -->
+          <div class="metric-box full-width">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <span class="metric-label">Bướm Ga Động Cơ (PWM Ramp)</span>
+              <span id="val-throttle-pct" style="font-family: var(--font-mono); font-size: 11px; font-weight: 800; color: #0284c7;">0% (0 RPM)</span>
+            </div>
+            <div class="throttle-container">
+              <div class="throttle-track">
+                <div class="throttle-fill" id="throttle-bar"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Tọa độ không gian X, Y, Z -->
+          <div class="metric-box">
+            <span class="metric-label">Tọa Độ (X, Y, Z)</span>
+            <div class="metric-value" style="font-size: 11.5px;">
+              <span id="val-pos-xyz">0.0, 0.4, 0.0</span>
+              <span class="metric-unit">m</span>
+            </div>
+          </div>
+
+          <!-- Góc quay Yaw & Độ dốc mặt đất -->
+          <div class="metric-box">
+            <span class="metric-label">Góc Yaw / Độ Dốc</span>
+            <div class="metric-value" style="font-size: 12.5px;">
+              <span id="val-yaw">0.0°</span>
+              <span class="metric-unit" id="val-slope" style="color: #059669;">0.0°</span>
+            </div>
+          </div>
+
+          <!-- Dữ liệu Nguồn Pin INA219 -->
+          <div class="metric-box">
+            <span class="metric-label">Điện Áp Pin 3S</span>
+            <div class="metric-value">
+              <span id="val-voltage" style="color: #059669;">12.45</span>
+              <span class="metric-unit">V</span>
+            </div>
+          </div>
+
+          <!-- Dung lượng % Pin -->
+          <div class="metric-box">
+            <span class="metric-label">Dung Lượng / Tải</span>
+            <div class="metric-value">
+              <span id="val-battery-pct" style="color: #059669;">95%</span>
+              <span class="metric-unit" id="val-current-draw">380 mA</span>
+            </div>
+          </div>
+
+          <!-- MINI-MAP RADAR THẾ GIỚI MỞ THỜI GIAN THỰC -->
+          <div class="metric-box full-width">
+            <div class="minimap-container">
+              <canvas id="radar-canvas" width="68" height="68"></canvas>
+              <div style="display: flex; flex-direction: column; gap: 2px;">
+                <span class="metric-label">Radar Bản Đồ 240m</span>
+                <div style="font-size: 10px; font-family: var(--font-mono); color: #0284c7; font-weight: bold;" id="radar-sector">Vùng: Trung Tâm (Xuất Phát)</div>
+                <div style="font-size: 9.5px; color: var(--text-muted);">Mũi tên: Vị trí &amp; Hướng xe</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- BÊN PHẢI: Bảng Giám sát Chi tiết Phần cứng & Ảnh Thực Tế Drive -->
+      <div class="inspector-card glass-panel interactive-el" id="inspector-panel">
+        <div class="card-title-bar">
+          <div class="card-title">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+            <span>Soi Phần Cứng Thực Tế</span>
+          </div>
+          <span style="font-size: 9.5px; font-family: var(--font-mono); color: #0284c7; font-weight: 600;">Click 3D để chọn</span>
+        </div>
+
+        <div class="part-header">
+          <div class="part-icon" id="part-icon">🧠</div>
+          <div>
+            <div class="part-name" id="part-title">NVIDIA Jetson Nano</div>
+            <div class="part-role" id="part-sub">Tầng Não Bộ Nhận Thức (Cognitive Brain)</div>
+          </div>
+        </div>
+
+        <!-- Khung ảnh chụp thực tế từ Google Drive cho linh kiện đang chọn -->
+        <div class="photo-preview-box" id="part-photo-box" title="Nhấp để phóng to ảnh chụp chi tiết từ Google Drive">
+          <img id="part-main-photo" src="https://lh3.googleusercontent.com/d/1O1gm9zGHq4wHAlt0Ut7tev6ydso99fJo=w1000" alt="Ảnh thực tế linh kiện" />
+          <div class="photo-badge-source">
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+            <span>Ảnh Thực Tế Drive</span>
+          </div>
+          <div class="photo-click-hint">
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
+            <span>Phóng to</span>
+          </div>
+        </div>
+
+        <div class="photo-caption" id="part-photo-caption"></div>
+
+        <!-- Dải ảnh thu nhỏ (Thumbnails) của bộ phận này -->
+        <div class="photo-thumb-strip" id="part-thumb-strip"></div>
+
+        <div class="part-desc" id="part-desc">
+          NVIDIA Jetson Nano | OS: Ubuntu 18.04 | Role: AI, SLAM, Vision (472 GFLOPS). Đảm nhiệm các mô hình học sâu tăng tốc qua TensorRT, đường ống camera GStreamer, thuật toán Cartographer/Gmapping 2D SLAM và điều hướng ROS.
+        </div>
+
+        <div class="spec-table" id="part-specs"></div>
+
+        <!-- Nút mở trực tiếp Google Drive link của bộ phận -->
+        <a id="btn-view-drive-file" href="https://drive.google.com/drive/folders/1Be6yD3VVVJlAumxnnH9KQtoHKgFBjut5?usp=sharing" target="_blank" rel="noopener noreferrer" class="btn-action" style="justify-content: center;">
+          <span>Xem File Gốc Trên Google Drive</span>
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14L21 3"/></svg>
+        </a>
+      </div>
+    </div>
+
+    <!-- BẢNG ĐIỀU KHIỂN TERMINAL & PHÍM ẢO (GÓC DƯỚI) -->
+    <div class="bottom-control-area interactive-el">
+      <!-- BẢNG NHẬP LỆNH DẠNG TERMINAL COMMAND (ROS /cmd_vel) -->
+      <div class="terminal-console glass-panel" id="terminal-panel">
+        <div class="terminal-header">
+          <div style="display: flex; align-items: center; gap: 6px;">
+            <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #059669;"></span>
+            <span>ROS Command Console • Topic: /cmd_vel</span>
+          </div>
+          <span style="font-size: 9.5px; color: var(--text-muted); font-weight: normal;">Nhập 'help' xem lệnh</span>
+        </div>
+
+        <div class="terminal-body" id="term-log-container">
+          <div class="term-log info">[SYSTEM] Bản đồ địa hình chi tiết cao 240m × 240m sẵn sàng.</div>
+          <div class="term-log info">[THROTTLE] Hệ thống điều tốc PWM kích hoạt: Giữ W tăng dần tốc độ.</div>
+          <div class="term-log success">[READY] Điều khiển: Phím W/A/S/D • Giữ SHIFT để bật TURBO BOOST.</div>
+        </div>
+
+        <div class="terminal-input-bar">
+          <span class="terminal-prompt">jetbot@terrain:~$</span>
+          <input type="text" id="terminal-input" class="terminal-input" placeholder="move forward 3, turn left 90, speed 0.8, stop..." autocomplete="off" />
+          <button id="btn-term-send" class="terminal-btn-send">GỬI</button>
+        </div>
+      </div>
+
+      <!-- PHÍM ĐIỀU HƯỚNG ẢO VÀ HƯỚNG DẪN BÀN PHÍM -->
+      <div class="drive-keypad-panel glass-panel">
+        <div class="key-dpad">
+          <div></div>
+          <button class="dpad-btn" id="dpad-up" title="Giữ để tăng tốc tiến dần (W / ↑)">▲</button>
+          <div></div>
+          <button class="dpad-btn" id="dpad-left" title="Rẽ trái (A / ←)">◀</button>
+          <button class="dpad-btn stop-btn" id="dpad-stop" title="Dừng khẩn cấp (Space / Stop)">■</button>
+          <button class="dpad-btn" id="dpad-right" title="Rẽ phải (D / →)">▶</button>
+        </div>
+
+        <div class="key-hints">
+          <div><span class="key-tag">Giữ W / ↑</span> <b>Tốc độ tăng dần</b> theo thời gian</div>
+          <div><span class="key-tag">SHIFT + W</span> <b>TURBO BOOST</b> (1.6 m/s)</div>
+          <div><span class="key-tag">A / D</span> Rẽ Trái / Phải • <span class="key-tag">Space</span> Phanh</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- THANH CHÂN TRANG: CHÚ THÍCH & GÓC NHÌN CAMERA -->
+    <footer class="footer-bar interactive-el">
+      <!-- Chú thích màu sắc kiến trúc 3D -->
+      <div class="legend-container glass-panel">
+        <div class="legend-item" id="legend-jetson">
+          <div class="legend-dot" style="background: #15803d;"></div>
+          <span>Jetson Nano (Não bộ)</span>
+        </div>
+        <div class="legend-item" id="legend-rp2040">
+          <div class="legend-dot" style="background: #0284c7;"></div>
+          <span>RP2040 MCU (Tiểu não)</span>
+        </div>
+        <div class="legend-item" id="legend-lidar">
+          <div class="legend-dot" style="background: #1e293b;"></div>
+          <span>RPLIDAR A1</span>
+        </div>
+        <div class="legend-item" id="legend-chassis">
+          <div class="legend-dot" style="background: #94a3b8; border: 1px solid #475569;"></div>
+          <span>Khung Xám Titan / Nhôm</span>
+        </div>
+        <div class="legend-item" id="legend-wheels">
+          <div class="legend-dot" style="background: #0f172a;"></div>
+          <span>Bánh Xe Vượt Địa Hình</span>
+        </div>
+        <div class="legend-item" id="legend-camera">
+          <div class="legend-dot" style="background: #0284c7;"></div>
+          <span>Camera IMX219</span>
+        </div>
+      </div>
+
+      <!-- Các góc nhìn Camera nhanh -->
+      <div class="camera-presets glass-panel" style="padding: 5px 10px;">
+        <button class="btn-preset active" id="cam-chase">Bám Đuôi Xe</button>
+        <button class="btn-preset" id="cam-fpv">Góc Nhìn Robot (FPV)</button>
+        <button class="btn-preset" id="cam-orbit">Xoay Tự Do (Orbit)</button>
+        <button class="btn-preset" id="cam-top">Từ Trên Cao (Terrain)</button>
+        <button class="btn-preset" id="cam-autorotate">Tự Động Quay</button>
+      </div>
+    </footer>
+  </div>
+
+
+
+  <!-- MODAL PHÓNG TO ẢNH FULLSCREEN -->
+  <div id="photo-enlarge-modal">
+    <div style="position: absolute; top: 20px; right: 24px; z-index: 160; display: flex; gap: 10px;">
+      <a id="btn-enlarge-drive-link" href="#" target="_blank" class="btn-action" style="background: #ffffff;">Xem gốc Google Drive</a>
+      <button id="btn-close-enlarge" style="background: rgba(255, 255, 255, 0.9); border: 1px solid rgba(0, 0, 0, 0.2); color: #0f172a; width: 34px; height: 34px; border-radius: 8px; font-size: 20px; cursor: pointer;">&times;</button>
+    </div>
+    <img id="photo-enlarge-img" src="" alt="Ảnh phóng to" />
+  </div>
+
+  <!-- TOÀN BỘ LOGIC ỨNG DỤNG THREE.JS & GSAP -->
+  <script type="module">
+    import * as THREE from 'https://unpkg.com/three@0.160.0/build/three.module.js';
+    import { OrbitControls } from 'https://unpkg.com/three@0.160.0/examples/jsm/controls/OrbitControls.js';
+    import gsap from 'https://unpkg.com/gsap@3.12.5/index.js';
+
+    // ==========================================
+    // 0. DỮ LIỆU ẢNH THỰC TẾ TỪ GOOGLE DRIVE (ĐÃ ĐỐI CHIẾU CHÍNH XÁC TỪNG BỘ PHẬN)
+    // ==========================================
+    const DRIVE_FOLDER_URL = "https://drive.google.com/drive/folders/1Be6yD3VVVJlAumxnnH9KQtoHKgFBjut5?usp=sharing";
+
+    const DRIVE_PHOTO_META = {
+      // Jetson Nano (Não bộ nhận thức)
+      "1O1gm9zGHq4wHAlt0Ut7tev6ydso99fJo": "Cận cảnh bo mạch NVIDIA Jetson Nano Dev Kit (tản nhiệt đen, 4x USB 3.0, LAN, GPIO)",
+      "1gOIUf9zh28F_RnBFVh132Enwi8MQqply": "Nhìn từ trên xuống bo Jetson Nano lắp quạt 40mm PWM & cáp dẹt CSI camera",
+      "1ULy5d-spxsdNJgrAF-cBZuw86lypBk8v": "Cụm cổng I/O bên hông Jetson Nano: HDMI/DP, 4x USB 3.0, WiFi USB & Ethernet",
+      "1G_OZCycSCGIKRg6ZP4-aqaIa7ZcRO-L9": "Toàn cảnh tầng trên bo Jetson Nano, quạt làm mát 40mm & kết nối cáp CSI",
+      "1g98mNuLtNKz1sDKRegIrMFWiAtZXIASz": "Mặt sau bo Jetson Nano: hàng chân 40-pin GPIO, quạt PWM & 2 ăng-ten WiFi",
+
+      // Bo mở rộng tầng giữa / Điều khiển động cơ, Pin 3S & OLED (RP2040 MCU layer)
+      "1htmjpyAOWBhrdVgslp1qM1__xsIvyazd": "Tầng giữa nhìn từ sau: bo điều khiển động cơ, giắc JST & khối pin 3S 18650 xanh",
+      "19FZaxyECEhftSLPXRaWU5ZKVMr8OO3PA": "Tầng bo mạch mở rộng: màn hình OLED 0.91\", công tắc nguồn ON/OFF & giắc 12.6V",
+      "1-i5v1XWj44IcP-ASPGcw2czLjGzCxTH1": "Góc ngang tầng bo mạch điều khiển trung tâm nằm giữa khung đế & Jetson Nano",
+      "1I7Dhsz1n3PrVfBis5wyZvJh7YaGv1MZV": "Sơ đồ chú thích màn hình 0.91\" OLED, loa kép, micro MEMS & nguồn pin 3S",
+
+      // Cảm biến RPLIDAR A1
+      "1dTPvtKVs8wuWqBNIpzYi7XrVk7jI8Vhc": "RPLIDAR A1 tháo rời trên bệ mica đen — thấy rõ đầu quay laser & động cơ puly",
+      "1xv_zongs_kqT52J1CDTn5xG6ItwkK47d": "Cận cảnh cửa sổ mắt thu/phát laser quang học & mạch bên trong RPLIDAR A1",
+      "1DeAOpekz4OUMtZS62z9zBCVYbXZpiGAj": "Thông số kỹ thuật RPLIDAR A1 (cự ly 12m, quét 360°, 8000Hz, OPTMAG) & trục ROS",
+      "1VzKv-y3zIWmiI8JyJZ650NmeHE-ULAnA": "Nhìn từ trên xuống cụm RPLIDAR A1 & dây curoa kéo puly tầng đỉnh",
+      "1SPJtel7481ExK2an2e-k6OupPi325enF": "Vị trí đặt tâm quay RPLIDAR A1 đồng trục giữa khung tròn robot",
+
+      // Camera Sony IMX219 & Giá nhôm xanh
+      "1OyDR9IJL9ciRAUnatfnethxVb4iv2Vxb": "Cận cảnh trực diện Camera 160° FOV, giá đỡ nhôm xanh, 2 ốc siết & cáp FFC",
+      "1jt53bwVHdold1NJnfJpEdKu6_wdleGIj": "Góc nghiêng phía trước: giá đỡ camera nhôm xanh bắt vít vào mũi khung đế",
+      "1EirD6b-xstrFnb6Hx6li2-KNowte0HX0": "Camera góc rộng gắn giá nghiêng nối cáp dẹt trắng FFC vào cổng CSI Jetson",
+
+      // Khung gầm nhôm tròn & Động cơ giảm tốc 37-520
+      "1E4Wq2_fBpKiHizT8nQ-LXeL8tvib7dpq": "Mặt đáy khung tròn nhôm xanh khoét CNC, 2 động cơ 37-520, dây encoder & 2 caster",
+      "1ZIB4n37JkDZ454zfXzpBt106hb57rwj8": "Toàn cảnh mặt đáy khung tròn đối xứng 2 động cơ giảm tốc & 2 bánh caster",
+      "1G_K1NSVKZh5qxXK1Oy2dK1ytEs5LadR4": "Cận cảnh 2 động cơ encoder 37-520 & giắc cắm dây tín hiệu dưới gầm khung",
+      "105NkxlD2zXaoaP1uEgk9r5tSmLLtsTpM": "Bản vẽ kích thước kỹ thuật khung gầm (Ø 213.25 mm × cao 164.91 mm)",
+      "1T6zzxlZ_aycjnmAka64r9YRwWqpVg2ho": "Bảng phân rã đầy đủ 26 chi tiết phần cứng trong bộ Waveshare JetBot ROS AI Kit",
+
+      // Bánh xe dẫn động mâm xanh dương & Bánh caster
+      "1y3ByobiDPzimceQgHg7vbyBAp_ZAzGRu": "Cận cảnh bánh xe mâm hợp kim đa chấu xanh dương & lốp cao su vân bám địa hình",
+      "1I7zRLJcSWe2NIdOu6jBOM3basT2GCP6-": "Bánh xe dẫn động mâm xanh dương cùng cặp bánh bi xoay caster trước & sau",
+      "1AUySjhCs-j5S_zXsS8gJVc1F9OzSkuqy": "Góc nghiêng bánh xe mâm xanh dương, trục khớp đồng & bánh caster sau",
+      "1p9M6GL44rA-DdKjXfS3uhwnD1XQe_eJp": "Góc ngang bánh xe mâm xanh dương lắp gọn trong hốc khoét khung nhôm"
+    };
+
+    // ==========================================
+    // 1. KHỞI TẠO SCENE, BẦU TRỜI & ÁNH SÁNG MẶT TRỜI
+    // ==========================================
+    const container = document.getElementById('webgl-container');
+    const scene = new THREE.Scene();
+    
+    scene.background = new THREE.Color(0xdbeafe);
+    scene.fog = new THREE.FogExp2(0xdbeafe, 0.0075);
+
+    const camera = new THREE.PerspectiveCamera(
+      45,
+      window.innerWidth / window.innerHeight,
+      0.1,
+      400
+    );
+    camera.position.set(0, 3.8, -5.8);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.15;
+    container.appendChild(renderer.domElement);
+
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.05;
+    controls.maxPolarAngle = Math.PI / 2 - 0.02;
+    controls.minDistance = 1.2;
+    controls.maxDistance = 140;
+    controls.target.set(0, 0.65, 0);
+
+    // HỆ THỐNG ÁNH SÁNG MẶT TRỜI TỰ NHIÊN
+    const hemiLight = new THREE.HemisphereLight(0xffffff, 0xcfd8dc, 0.95);
+    scene.add(hemiLight);
+
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.65);
+    scene.add(ambientLight);
+
+    const sunLight = new THREE.DirectionalLight(0xfffbeb, 2.7);
+    sunLight.position.set(40, 70, 35);
+    sunLight.castShadow = true;
+    sunLight.shadow.mapSize.width = 2048;
+    sunLight.shadow.mapSize.height = 2048;
+    sunLight.shadow.camera.near = 0.5;
+    sunLight.shadow.camera.far = 180;
+    sunLight.shadow.camera.left = -45;
+    sunLight.shadow.camera.right = 45;
+    sunLight.shadow.camera.top = 45;
+    sunLight.shadow.camera.bottom = -45;
+    sunLight.shadow.bias = -0.0003;
+    scene.add(sunLight);
+
+    const skyFillLight = new THREE.DirectionalLight(0xbae6fd, 0.85);
+    skyFillLight.position.set(-30, 35, -30);
+    scene.add(skyFillLight);
+
+    // ==========================================
+    // 2. TẠO TEXTURE ĐỊA HÌNH VI MÔ BẰNG CANVAS (MICRO-TEXTURE PROCEDURAL)
+    // ==========================================
+    function createGroundDetailTexture() {
+      const cvs = document.createElement('canvas');
+      cvs.width = 512;
+      cvs.height = 512;
+      const ctx = cvs.getContext('2d');
+
+      // Nền đất cát cỏ nhạt
+      ctx.fillStyle = '#f8fafc';
+      ctx.fillRect(0, 0, 512, 512);
+
+      // Tạo hạt đất cát và vân cỏ ngẫu nhiên
+      for (let i = 0; i < 4000; i++) {
+        const x = Math.random() * 512;
+        const y = Math.random() * 512;
+        const r = Math.random() * 2 + 1;
+        const gray = Math.floor(Math.random() * 45);
+        ctx.fillStyle = `rgba(${gray + 60}, ${gray + 110}, ${gray + 70}, 0.14)`;
+        ctx.beginPath();
+        ctx.arc(x, y, r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // Tạo các sọc vân đất sỏi
+      for (let i = 0; i < 120; i++) {
+        const x1 = Math.random() * 512;
+        const y1 = Math.random() * 512;
+        const len = Math.random() * 14 + 4;
+        ctx.strokeStyle = 'rgba(71, 85, 105, 0.12)';
+        ctx.lineWidth = Math.random() * 2 + 1;
+        ctx.beginPath();
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(x1 + len, y1 + Math.random() * 6 - 3);
+        ctx.stroke();
+      }
+
+      const tex = new THREE.CanvasTexture(cvs);
+      tex.wrapS = THREE.RepeatWrapping;
+      tex.wrapT = THREE.RepeatWrapping;
+      tex.repeat.set(36, 36);
+      return tex;
+    }
+
+    const groundDetailTex = createGroundDetailTexture();
+
+    // ==========================================
+    // 3. THẾ GIỚI MỞ ĐỊA HÌNH TỰ NHIÊN ĐỘ CHI TIẾT CAO (240m × 240m)
+    // ==========================================
+    function getTerrainHeight(x, z) {
+      const dist = Math.hypot(x, z);
+      // Vùng trung tâm đường chạy phẳng bán kính 5m
+      const blend = Math.min(1, Math.max(0, (dist - 4.5) / 10));
+
+      // 1. Dãy đồi nhấp nhô chính
+      const h1 = Math.sin(x * 0.038) * Math.cos(z * 0.038) * 3.8;
+      // 2. Thung lũng phụ và rãnh đất
+      const h2 = Math.sin(x * 0.085 + 1.2) * Math.cos(z * 0.078 + 0.8) * 1.8;
+      // 3. Gờ mấp mô mặt đất vi mô
+      const h3 = Math.sin(x * 0.18) * Math.sin(z * 0.18) * 0.55;
+      // 4. Vách núi cao ở rìa xa
+      const ridge = Math.max(0, Math.sin(x * 0.02 + 0.4) * Math.cos(z * 0.02)) * 4.6;
+      // 5. Con đường mòn gợn sóng uốn quanh
+      const pathWave = Math.sin(z * 0.1) * 0.25;
+
+      return (h1 + h2 + h3 + ridge + pathWave) * blend;
+    }
+
+    function getTerrainNormal(x, z) {
+      const eps = 0.22;
+      const hL = getTerrainHeight(x - eps, z);
+      const hR = getTerrainHeight(x + eps, z);
+      const hD = getTerrainHeight(x, z - eps);
+      const hU = getTerrainHeight(x, z + eps);
+      return new THREE.Vector3(hL - hR, 2 * eps, hD - hU).normalize();
+    }
+
+    const terrainSize = 240;
+    const terrainSegments = 160;
+    const terrainGeo = new THREE.PlaneGeometry(terrainSize, terrainSize, terrainSegments, terrainSegments);
+    terrainGeo.rotateX(-Math.PI / 2);
+
+    // Tô màu đa sắc tự nhiên kết hợp đổ bóng sườn dốc (Slope Shading)
+    const posAttr = terrainGeo.attributes.position;
+    const colors = [];
+    const colorLush = new THREE.Color(0x86efac); // Cỏ xanh mướt
+    const colorMeadow = new THREE.Color(0xa7f3d0); // Thảm đồng cỏ
+    const colorDirt = new THREE.Color(0xfef08a); // Đường đất cát nắng
+    const colorCliff = new THREE.Color(0x94a3b8); // Vách đá dốc xám
+    const colorSnow = new THREE.Color(0xf1f5f9); // Đỉnh đồi sáng
+    const colorTrack = new THREE.Color(0xe0f2fe); // Vạch trung tâm
+
+    for (let i = 0; i < posAttr.count; i++) {
+      const vx = posAttr.getX(i);
+      const vz = posAttr.getZ(i);
+      const vy = getTerrainHeight(vx, vz);
+      posAttr.setY(i, vy);
+
+      const norm = getTerrainNormal(vx, vz);
+      const slope = 1.0 - norm.y; // 0 = phẳng, 1 = dốc đứng 90 độ
+      const dist = Math.hypot(vx, vz);
+
+      const vertexColor = new THREE.Color();
+      if (dist < 5.2) {
+        vertexColor.copy(colorTrack);
+      } else if (slope > 0.38) {
+        // Dốc đứng: vách đá granite xám
+        vertexColor.copy(colorCliff).lerp(colorDirt, 0.2);
+      } else if (vy > 3.2) {
+        // Đỉnh cao
+        vertexColor.copy(colorDirt).lerp(colorSnow, (vy - 3.2) / 3.0);
+      } else if (vy < 0.8) {
+        // Vùng đất thấp trũng
+        vertexColor.copy(colorLush);
+      } else {
+        // Sườn đồi thoải
+        vertexColor.copy(colorMeadow).lerp(colorDirt, (vy - 0.8) / 2.4);
+      }
+      colors.push(vertexColor.r, vertexColor.g, vertexColor.b);
+    }
+    terrainGeo.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+    terrainGeo.computeVertexNormals();
+
+    const terrainMat = new THREE.MeshStandardMaterial({
+      vertexColors: true,
+      map: groundDetailTex,
+      roughness: 0.85,
+      metalness: 0.08
+    });
+    const terrainMesh = new THREE.Mesh(terrainGeo, terrainMat);
+    terrainMesh.receiveShadow = true;
+    scene.add(terrainMesh);
+
+    // Lưới tọa độ địa hình
+    const terrainGrid = new THREE.GridHelper(terrainSize, 60, 0x0284c7, 0xcfd8dc);
+    terrainGrid.position.y = 0.02;
+    scene.add(terrainGrid);
+
+    // Vạch xuất phát tròn phát sáng
+    const startRingGeo = new THREE.RingGeometry(1.5, 1.65, 64);
+    const startRingMat = new THREE.MeshBasicMaterial({ color: 0x0284c7, side: THREE.DoubleSide, transparent: true, opacity: 0.8 });
+    const startRing = new THREE.Mesh(startRingGeo, startRingMat);
+    startRing.rotation.x = -Math.PI / 2;
+    startRing.position.y = 0.03;
+    scene.add(startRing);
+
+    // ==========================================
+    // 4. MÔI TRƯỜNG TỰ NHIÊN ĐA DẠNG & CÁC CÔNG TRÌNH VƯỢT ĐỊA HÌNH
+    // ==========================================
+    const natureGroup = new THREE.Group();
+    scene.add(natureGroup);
+
+    // A. Khối đá tảng tự nhiên (Low-poly Granite Boulders)
+    const rockMat = new THREE.MeshStandardMaterial({ color: 0x64748b, roughness: 0.88, metalness: 0.15 });
+    const rockMatLight = new THREE.MeshStandardMaterial({ color: 0x94a3b8, roughness: 0.9, metalness: 0.1 });
+    const rockCoords = [
+      [7, 6], [-8, 7], [12, -9], [-14, -8],
+      [18, 14], [-22, 16], [24, -20], [-19, -24],
+      [32, 5], [-35, -4], [6, 28], [-8, 34],
+      [16, -38], [-28, -32], [45, 18], [-48, 22]
+    ];
+    rockCoords.forEach(([rx, rz], idx) => {
+      const ry = getTerrainHeight(rx, rz);
+      const rockGeo = new THREE.DodecahedronGeometry(0.75 + Math.random() * 0.8, 1);
+      const rock = new THREE.Mesh(rockGeo, idx % 2 === 0 ? rockMat : rockMatLight);
+      rock.position.set(rx, ry + 0.45, rz);
+      rock.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI);
+      rock.scale.set(1.25, 0.75, 1.1);
+      rock.castShadow = true;
+      rock.receiveShadow = true;
+      natureGroup.add(rock);
+    });
+
+    // B. Rừng cây thông & Cây lá xanh (Stylized Pine & Broadleaf Trees)
+    const trunkMat = new THREE.MeshStandardMaterial({ color: 0x78350f, roughness: 0.9 });
+    const pineMat1 = new THREE.MeshStandardMaterial({ color: 0x15803d, roughness: 0.8 });
+    const pineMat2 = new THREE.MeshStandardMaterial({ color: 0x166534, roughness: 0.8 });
+    const treeCoords = [
+      [-12, 12], [14, 15], [-16, -18], [20, -12],
+      [-26, 22], [28, 26], [-32, -15], [36, -24],
+      [15, 38], [-20, 36], [-42, 8], [44, 12],
+      [52, -18], [-54, -22], [10, -50], [-14, 52]
+    ];
+    treeCoords.forEach(([tx, tz], idx) => {
+      const ty = getTerrainHeight(tx, tz);
+      const tree = new THREE.Group();
+      tree.position.set(tx, ty, tz);
+
+      const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.24, 1.5, 8), trunkMat);
+      trunk.position.y = 0.75;
+      trunk.castShadow = true;
+      tree.add(trunk);
+
+      const pMat = idx % 2 === 0 ? pineMat1 : pineMat2;
+      const c1 = new THREE.Mesh(new THREE.ConeGeometry(1.3, 1.8, 8), pMat);
+      c1.position.y = 2.0;
+      c1.castShadow = true;
+      tree.add(c1);
+
+      const c2 = new THREE.Mesh(new THREE.ConeGeometry(0.9, 1.5, 8), pMat);
+      c2.position.y = 2.9;
+      c2.castShadow = true;
+      tree.add(c2);
+
+      natureGroup.add(tree);
+    });
+
+    // C. Cầu gỗ vượt dốc thử nghiệm (Wooden Suspension Test Ramp)
+    const woodMat = new THREE.MeshStandardMaterial({ color: 0xa16207, roughness: 0.85 });
+    const bridgeGroup = new THREE.Group();
+    const bx = 16, bz = 0;
+    const by = getTerrainHeight(bx, bz);
+    bridgeGroup.position.set(bx, by, bz);
+
+    const bridgeDeck = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.12, 6.5), woodMat);
+    bridgeDeck.position.y = 0.35;
+    bridgeDeck.castShadow = true;
+    bridgeGroup.add(bridgeDeck);
+
+    // Cọc lan can cầu
+    for (let p = -2.8; p <= 2.8; p += 1.4) {
+      const postL = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.7, 8), woodMat);
+      postL.position.set(-1.15, 0.7, p);
+      bridgeGroup.add(postL);
+
+      const postR = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.7, 8), woodMat);
+      postR.position.set(1.15, 0.7, p);
+      bridgeGroup.add(postR);
+    }
+    natureGroup.add(bridgeGroup);
+
+    // D. Cột tiêu slalom cờ caro kiểm thử điều hướng robot
+    const pylonCoords = [
+      [0, 10], [0, 18], [0, 26], [0, 34],
+      [-5, 14], [5, 22], [-5, 30]
+    ];
+    pylonCoords.forEach(([px, pz], idx) => {
+      const py = getTerrainHeight(px, pz);
+      const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 1.6, 12), new THREE.MeshStandardMaterial({ color: 0xd97706 }));
+      pole.position.set(px, py + 0.8, pz);
+      pole.castShadow = true;
+      natureGroup.add(pole);
+
+      const flag = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.3, 0.02), new THREE.MeshStandardMaterial({ color: idx % 2 === 0 ? 0x0284c7 : 0xdc2626 }));
+      flag.position.set(px + 0.25, py + 1.45, pz);
+      natureGroup.add(flag);
+    });
+
+    // ==========================================
+    // 5. DỰNG MÔ HÌNH 3D JETBOT (NỔI BẬT TRÊN NỀN SÁNG)
+    // ==========================================
+    const robotRoot = new THREE.Group();
+    scene.add(robotRoot);
+
+    const explodedParts = [];
+    const interactiveMeshes = [];
+
+    // --- A. CHASSIS KHUNG GẦM XÁM TITAN & BỘ NGUỒN 3S ---
+    const chassisGroup = new THREE.Group();
+    chassisGroup.userData = {
+      name: "Khung Gầm Kim Loại Xám Titan & Bộ Nguồn 3S",
+      key: "chassis",
+      role: "Khung Đế Tròn Chịu Lực Hợp Kim & Quản Lý Pin 3S",
+      desc: "Khung hợp kim nhôm tròn mạ xám titan / bạc sáng đường kính 210mm có 2 hốc khoét CNC bánh xe vi sai, tối ưu thăng bằng trọng tâm thấp khi vượt địa hình dốc. Dưới gầm tích hợp khối pin 3S Li-ion (12.6V) bảo vệ đa lớp.",
+      specs: [
+        { k: "Vật liệu khung:", v: "Hợp kim Nhôm Xám Titan / Bạc Sáng" },
+        { k: "Hốc khuyết bánh:", v: "Khoét CNC chính xác 2 bên hông" },
+        { k: "Khối pin nguồn:", v: "3S 18650 Li-ion (11.1V - 12.6V)" },
+        { k: "Mạch an toàn:", v: "S-8254AA + AO4407A chống ngắn mạch" }
+      ],
+      photoIds: [
+        "1E4Wq2_fBpKiHizT8nQ-LXeL8tvib7dpq",
+        "1ZIB4n37JkDZ454zfXzpBt106hb57rwj8",
+        "1G_K1NSVKZh5qxXK1Oy2dK1ytEs5LadR4",
+        "105NkxlD2zXaoaP1uEgk9r5tSmLLtsTpM",
+        "1T6zzxlZ_aycjnmAka64r9YRwWqpVg2ho"
+      ],
+      origPos: new THREE.Vector3(0, 0.35, 0),
+      explodedPos: new THREE.Vector3(0, 0.35, 0)
+    };
+    chassisGroup.position.copy(chassisGroup.userData.origPos);
+
+    const titanChassisMat = new THREE.MeshStandardMaterial({
+      color: 0x94a3b8,
+      metalness: 0.85,
+      roughness: 0.25
+    });
+
+    const shape = new THREE.Shape();
+    const R = 1.15;
+    const wCut = 0.34;
+    const hCut = 0.52;
+    shape.absarc(0, 0, R, 0, Math.PI * 2, false);
+
+    const holeLeft = new THREE.Path();
+    holeLeft.moveTo(-R - 0.2, -hCut);
+    holeLeft.lineTo(-R + wCut, -hCut);
+    holeLeft.lineTo(-R + wCut, hCut);
+    holeLeft.lineTo(-R - 0.2, hCut);
+    holeLeft.closePath();
+    shape.holes.push(holeLeft);
+
+    const holeRight = new THREE.Path();
+    holeRight.moveTo(R + 0.2, -hCut);
+    holeRight.lineTo(R - wCut, -hCut);
+    holeRight.lineTo(R - wCut, hCut);
+    holeRight.lineTo(R + 0.2, hCut);
+    holeRight.closePath();
+    shape.holes.push(holeRight);
+
+    const extrudeSettings = { depth: 0.05, bevelEnabled: true, bevelSegments: 3, steps: 1, bevelSize: 0.015, bevelThickness: 0.015 };
+    const chassisPlate = new THREE.Mesh(new THREE.ExtrudeGeometry(shape, extrudeSettings), titanChassisMat);
+    chassisPlate.rotation.x = Math.PI / 2;
+    chassisPlate.castShadow = true;
+    chassisPlate.receiveShadow = true;
+    chassisGroup.add(chassisPlate);
+    interactiveMeshes.push(chassisPlate);
+    chassisPlate.userData.parentGroup = chassisGroup;
+
+    const batteryBox = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.22, 1.4), new THREE.MeshStandardMaterial({ color: 0x334155, metalness: 0.8, roughness: 0.3 }));
+    batteryBox.position.y = -0.12;
+    batteryBox.castShadow = true;
+    chassisGroup.add(batteryBox);
+    interactiveMeshes.push(batteryBox);
+    batteryBox.userData.parentGroup = chassisGroup;
+
+    const motorMat = new THREE.MeshStandardMaterial({ color: 0x64748b, metalness: 0.9, roughness: 0.2 });
+    const motorGeo = new THREE.CylinderGeometry(0.18, 0.18, 0.6, 20);
+
+    const motorL = new THREE.Mesh(motorGeo, motorMat);
+    motorL.rotation.z = Math.PI / 2;
+    motorL.position.set(-0.48, -0.06, 0);
+    chassisGroup.add(motorL);
+    interactiveMeshes.push(motorL);
+    motorL.userData.parentGroup = chassisGroup;
+
+    const motorR = new THREE.Mesh(motorGeo, motorMat);
+    motorR.rotation.z = Math.PI / 2;
+    motorR.position.set(0.48, -0.06, 0);
+    chassisGroup.add(motorR);
+    interactiveMeshes.push(motorR);
+    motorR.userData.parentGroup = chassisGroup;
+
+    // Cọc đồng nâng tầng
+    const standoffMat = new THREE.MeshStandardMaterial({ color: 0xd97706, metalness: 0.95, roughness: 0.2 });
+    const standoffGeo = new THREE.CylinderGeometry(0.03, 0.03, 0.85, 12);
+    [[-0.55, 0.42, -0.65], [0.55, 0.42, -0.65], [-0.55, 0.42, 0.65], [0.55, 0.42, 0.65]].forEach(([x, y, z]) => {
+      const pin = new THREE.Mesh(standoffGeo, standoffMat);
+      pin.position.set(x, y, z);
+      chassisGroup.add(pin);
+    });
+
+    robotRoot.add(chassisGroup);
+    explodedParts.push(chassisGroup);
+
+    // --- B. BÁNH XE MÂM ĐA CHẤU & CASTER XOAY 360 ĐỘ ---
+    const wheelMeshesToRotate = [];
+    const tireMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.85, metalness: 0.1 });
+    const blueRimMat = new THREE.MeshStandardMaterial({ color: 0x0284c7, metalness: 0.85, roughness: 0.2 });
+    const tireGeo = new THREE.CylinderGeometry(0.36, 0.36, 0.24, 28);
+
+    const makeWheel = (name, x, y, z, isDrive) => {
+      const wg = new THREE.Group();
+      wg.userData = {
+        name: isDrive ? "Bánh Xe Dẫn Động & Mâm Xanh Dương" : "Bánh Caster Xoay Cân Bằng",
+        key: "wheels",
+        role: "Dẫn Động Vi Sai & Đọc Encoder Quán Tính Vượt Dốc",
+        desc: "Bánh xe lốp cao su vân bám địa hình, mâm hợp kim đa chấu màu xanh dương ánh kim. Nối với động cơ kim loại 37-520 (1:30, 333 RPM) và encoder Hall 11 dây pha AB cho độ phân giải 330 xung/vòng. Cùng 2 bánh caster trước/sau tạo điểm tựa 4 điểm thăng bằng tuyệt đối trên địa hình dốc.",
+        specs: [
+          { k: "Đường kính bánh xe:", v: "65 mm Lốp Cao Su Vân Bám Địa Hình" },
+          { k: "Mâm bánh xe:", v: "Hợp kim Đa Chấu Mạ Xanh Dương" },
+          { k: "Khớp trục:", v: "Lục Giác Đồng Thau (Brass Hex Coupler)" },
+          { k: "Bánh cân bằng:", v: "2 Bánh Caster Bi Xoay Trước & Sau" }
+        ],
+        photoIds: [
+          "1y3ByobiDPzimceQgHg7vbyBAp_ZAzGRu",
+          "1I7zRLJcSWe2NIdOu6jBOM3basT2GCP6-",
+          "1AUySjhCs-j5S_zXsS8gJVc1F9OzSkuqy",
+          "1p9M6GL44rA-DdKjXfS3uhwnD1XQe_eJp"
+        ],
+        origPos: new THREE.Vector3(x, y, z),
+        explodedPos: new THREE.Vector3(x > 0 ? x + 0.65 : x < 0 ? x - 0.65 : x, y, z > 0 ? z + 0.45 : z < 0 ? z - 0.45 : z)
+      };
+      wg.position.copy(wg.userData.origPos);
+
+      if (isDrive) {
+        const rotator = new THREE.Group();
+        wg.add(rotator);
+        wheelMeshesToRotate.push(rotator);
+
+        const tire = new THREE.Mesh(tireGeo, tireMat);
+        tire.rotation.z = Math.PI / 2;
+        tire.castShadow = true;
+        rotator.add(tire);
+        interactiveMeshes.push(tire);
+        tire.userData.parentGroup = wg;
+
+        const rim = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.24, 0.25, 20), blueRimMat);
+        rim.rotation.z = Math.PI / 2;
+        rotator.add(rim);
+        interactiveMeshes.push(rim);
+        rim.userData.parentGroup = wg;
+
+        for (let s = 0; s < 6; s++) {
+          const spoke = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.22, 0.04), new THREE.MeshStandardMaterial({ color: 0x38bdf8, metalness: 0.9 }));
+          spoke.position.x = (x > 0 ? 0.12 : -0.12);
+          spoke.rotation.x = (s * Math.PI) / 3;
+          rotator.add(spoke);
+        }
+      } else {
+        const fork = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.18, 0.2), new THREE.MeshStandardMaterial({ color: 0xe2e8f0, metalness: 0.9 }));
+        fork.position.y = 0.06;
+        wg.add(fork);
+
+        const rollerRotator = new THREE.Group();
+        wg.add(rollerRotator);
+        wheelMeshesToRotate.push(rollerRotator);
+
+        const roller = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.14, 16), new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.7 }));
+        roller.rotation.z = Math.PI / 2;
+        roller.castShadow = true;
+        rollerRotator.add(roller);
+        interactiveMeshes.push(roller);
+        roller.userData.parentGroup = wg;
+      }
+
+      robotRoot.add(wg);
+      explodedParts.push(wg);
+      return wg;
+    };
+
+    const wheelLeft = makeWheel("Bánh Dẫn Động Trái", -1.02, 0.28, 0, true);
+    const wheelRight = makeWheel("Bánh Dẫn Động Phải", 1.02, 0.28, 0, true);
+    const casterFront = makeWheel("Bánh Caster Trước", 0, 0.16, 0.88, false);
+    const casterRear = makeWheel("Bánh Caster Sau", 0, 0.16, -0.88, false);
+
+    // --- C. "MOTOR CEREBELLUM" (Bo RP2040 MCU) ---
+    const rp2040Group = new THREE.Group();
+    rp2040Group.userData = {
+      name: "Bo Vi Điều Khiển RP2040 & Cầu H TB6612",
+      key: "rp2040",
+      role: "Vòng Lặp PID Thời Gian Thực, Điều Khiển Động Cơ, Odometry",
+      desc: "RP2040 Dual-core Cortex-M0+ | Role: Real-time PID Motor Control, Encoder Parsing | I2C Addr: 0x60. Nằm ở tầng giữa, trực tiếp xuất xung PWM điều khiển cầu H TB6612FNG và đọc encoder Hall 11 dây pha AB với độ trễ jitter bằng 0.",
+      specs: [
+        { k: "Lõi vi điều khiển:", v: "Dual-Core ARM Cortex-M0+ @ 133 MHz" },
+        { k: "SRAM / Flash:", v: "264 KB SRAM / 2 MB Quad-SPI Flash" },
+        { k: "Địa chỉ Bus I2C:", v: "0x60 (Bản đồ thanh ghi lệnh chuẩn hóa)" },
+        { k: "Cổng USB Serial:", v: "/dev/ttyACM0 (Dữ liệu thô Odometry & IMU)" },
+        { k: "Nạp Firmware:", v: "UF2 Kéo-Thả (Ổ đĩa RPI-RP2 Mass Storage)" }
+      ],
+      photoIds: [
+        "1htmjpyAOWBhrdVgslp1qM1__xsIvyazd",
+        "19FZaxyECEhftSLPXRaWU5ZKVMr8OO3PA",
+        "1-i5v1XWj44IcP-ASPGcw2czLjGzCxTH1",
+        "1I7Dhsz1n3PrVfBis5wyZvJh7YaGv1MZV"
+      ],
+      origPos: new THREE.Vector3(0, 0.65, 0),
+      explodedPos: new THREE.Vector3(0, 1.0, 0)
+    };
+    rp2040Group.position.copy(rp2040Group.userData.origPos);
+
+    const rp2040Pcb = new THREE.Mesh(new THREE.BoxGeometry(1.3, 0.05, 1.8), new THREE.MeshStandardMaterial({ color: 0x0284c7, roughness: 0.35, metalness: 0.4 }));
+    rp2040Pcb.castShadow = true;
+    rp2040Group.add(rp2040Pcb);
+    interactiveMeshes.push(rp2040Pcb);
+    rp2040Pcb.userData.parentGroup = rp2040Group;
+
+    const chipMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.2, metalness: 0.8 });
+    const rp2040Chip = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.03, 0.24), chipMat);
+    rp2040Chip.position.set(-0.25, 0.04, -0.2);
+    rp2040Group.add(rp2040Chip);
+
+    const tbChip = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.03, 0.14), chipMat);
+    tbChip.position.set(0.35, 0.04, 0.2);
+    rp2040Group.add(tbChip);
+
+    const oledMesh = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.03, 0.16), new THREE.MeshStandardMaterial({ color: 0x09090b, roughness: 0.1 }));
+    oledMesh.position.set(0, 0.04, -0.72);
+    rp2040Group.add(oledMesh);
+    interactiveMeshes.push(oledMesh);
+    oledMesh.userData.parentGroup = rp2040Group;
+
+    const oledGlow = new THREE.Mesh(new THREE.PlaneGeometry(0.36, 0.12), new THREE.MeshBasicMaterial({ color: 0x0284c7, transparent: true, opacity: 0.9 }));
+    oledGlow.rotation.x = -Math.PI / 2;
+    oledGlow.position.set(0, 0.06, -0.72);
+    rp2040Group.add(oledGlow);
+
+    robotRoot.add(rp2040Group);
+    explodedParts.push(rp2040Group);
+
+    // --- D. "COGNITIVE BRAIN" (Bo NVIDIA Jetson Nano) ---
+    const jetsonGroup = new THREE.Group();
+    jetsonGroup.userData = {
+      name: "NVIDIA Jetson Nano Dev Kit Rev2",
+      key: "jetson",
+      role: "Tầng Não Bộ Nhận Thức (Cognitive Brain)",
+      desc: "NVIDIA Jetson Nano | OS: Ubuntu 18.04 | Role: AI, SLAM, Vision (472 GFLOPS). Đảm nhiệm các mô hình học sâu tăng tốc qua TensorRT, đường ống camera GStreamer, thuật toán Cartographer/Gmapping 2D SLAM và điều hướng ROS.",
+      specs: [
+        { k: "Bộ vi xử lý:", v: "Quad-Core ARM Cortex-A57 @ 1.43 GHz" },
+        { k: "GPU tính toán:", v: "128 lõi Maxwell (472 GFLOPS FP16)" },
+        { k: "Bộ nhớ RAM:", v: "4 GB 64-bit LPDDR4 (25.6 GB/s)" },
+        { k: "Giao tiếp liên kết:", v: "I2C Master + USB Host tới RP2040" },
+        { k: "Nền tảng Phần mềm:", v: "Ubuntu 18.04 LTS / JetPack / Docker / ROS" }
+      ],
+      photoIds: [
+        "1O1gm9zGHq4wHAlt0Ut7tev6ydso99fJo",
+        "1gOIUf9zh28F_RnBFVh132Enwi8MQqply",
+        "1ULy5d-spxsdNJgrAF-cBZuw86lypBk8v",
+        "1G_OZCycSCGIKRg6ZP4-aqaIa7ZcRO-L9",
+        "1g98mNuLtNKz1sDKRegIrMFWiAtZXIASz"
+      ],
+      origPos: new THREE.Vector3(0, 0.95, 0),
+      explodedPos: new THREE.Vector3(0, 1.75, 0)
+    };
+    jetsonGroup.position.copy(jetsonGroup.userData.origPos);
+
+    const jetsonPcb = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.05, 1.8), new THREE.MeshStandardMaterial({ color: 0x15803d, roughness: 0.35, metalness: 0.3 }));
+    jetsonPcb.castShadow = true;
+    jetsonGroup.add(jetsonPcb);
+    interactiveMeshes.push(jetsonPcb);
+    jetsonPcb.userData.parentGroup = jetsonGroup;
+
+    const heatsink = new THREE.Mesh(new THREE.BoxGeometry(0.82, 0.26, 0.86), new THREE.MeshStandardMaterial({ color: 0x1e293b, metalness: 0.9, roughness: 0.2 }));
+    heatsink.position.set(0, 0.16, 0.05);
+    heatsink.castShadow = true;
+    jetsonGroup.add(heatsink);
+    interactiveMeshes.push(heatsink);
+    heatsink.userData.parentGroup = jetsonGroup;
+
+    const fanFrame = new THREE.Mesh(new THREE.BoxGeometry(0.74, 0.09, 0.74), new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.5 }));
+    fanFrame.position.set(0, 0.33, 0.05);
+    jetsonGroup.add(fanFrame);
+    interactiveMeshes.push(fanFrame);
+    fanFrame.userData.parentGroup = jetsonGroup;
+
+    const fanBlades = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 0.04, 8), new THREE.MeshStandardMaterial({ color: 0x475569 }));
+    fanBlades.position.set(0, 0.35, 0.05);
+    jetsonGroup.add(fanBlades);
+
+    const usbPorts = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.2, 0.52), new THREE.MeshStandardMaterial({ color: 0xcbd5e1, metalness: 0.95 }));
+    usbPorts.position.set(-0.54, 0.13, -0.42);
+    jetsonGroup.add(usbPorts);
+    interactiveMeshes.push(usbPorts);
+    usbPorts.userData.parentGroup = jetsonGroup;
+
+    const antennaMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.4 });
+    const antennaGeo = new THREE.CylinderGeometry(0.025, 0.025, 1.1, 12);
+
+    const ant1 = new THREE.Mesh(antennaGeo, antennaMat);
+    ant1.position.set(-0.65, 0.62, -0.75);
+    ant1.rotation.x = -0.12; ant1.rotation.z = -0.22;
+    jetsonGroup.add(ant1);
+
+    const ant2 = new THREE.Mesh(antennaGeo, antennaMat);
+    ant2.position.set(0.65, 0.62, -0.75);
+    ant2.rotation.x = -0.12; ant2.rotation.z = 0.22;
+    jetsonGroup.add(ant2);
+
+    robotRoot.add(jetsonGroup);
+    explodedParts.push(jetsonGroup);
+
+    // --- E. CẢM BIẾN LIDAR (Slamtec RPLIDAR A1) ---
+    const lidarGroup = new THREE.Group();
+    lidarGroup.userData = {
+      name: "Cảm Biến Slamtec RPLIDAR A1 (Tầng Quét Laser)",
+      key: "lidar",
+      role: "Quét 360° | Sinh Bản Đồ Lưới Occupancy Grid",
+      desc: "RPLIDAR A1 | 360° Laser Scanner | Generates 2D Occupancy Grid Map. Gắn trên bệ mica đen nâng cao bằng cọc đồng tránh chắn tầm quét. Gồm động cơ kéo puly curoa êm ái và mắt laser tam giác quang học quét 8.000 mẫu/giây cự ly 12m cho Cartographer/Gmapping SLAM.",
+      specs: [
+        { k: "Trường nhìn quét:", v: "360° Liên Tục Toàn Phương" },
+        { k: "Tần số lấy mẫu:", v: "8.000 Hz (Triangulation Laser)" },
+        { k: "Tốc độ quét puly:", v: "5.5 Hz - 10 Hz (Điều Tốc PWM)" },
+        { k: "Khoảng cách đo:", v: "0.15 m - 12.0 m (Class 1 Eye Safe)" },
+        { k: "Bản tin ROS:", v: "sensor_msgs/LaserScan (Topic /scan)" }
+      ],
+      photoIds: [
+        "1dTPvtKVs8wuWqBNIpzYi7XrVk7jI8Vhc",
+        "1xv_zongs_kqT52J1CDTn5xG6ItwkK47d",
+        "1DeAOpekz4OUMtZS62z9zBCVYbXZpiGAj",
+        "1VzKv-y3zIWmiI8JyJZ650NmeHE-ULAnA",
+        "1SPJtel7481ExK2an2e-k6OupPi325enF"
+      ],
+      origPos: new THREE.Vector3(0, 1.5, 0.05),
+      explodedPos: new THREE.Vector3(0, 2.65, 0.05)
+    };
+    lidarGroup.position.copy(lidarGroup.userData.origPos);
+
+    const lidarDeck = new THREE.Mesh(new THREE.BoxGeometry(0.92, 0.04, 0.92), new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.4 }));
+    lidarDeck.position.y = -0.15;
+    lidarGroup.add(lidarDeck);
+    interactiveMeshes.push(lidarDeck);
+    lidarDeck.userData.parentGroup = lidarGroup;
+
+    const beltMotor = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.18, 16), new THREE.MeshStandardMaterial({ color: 0x94a3b8, metalness: 0.85 }));
+    beltMotor.position.set(0.28, -0.04, -0.22);
+    lidarGroup.add(beltMotor);
+    interactiveMeshes.push(beltMotor);
+    beltMotor.userData.parentGroup = lidarGroup;
+
+    const belt = new THREE.Mesh(new THREE.TorusGeometry(0.26, 0.02, 8, 24), new THREE.MeshStandardMaterial({ color: 0x18181b, roughness: 0.9 }));
+    belt.rotation.x = Math.PI / 2;
+    belt.position.set(0.14, 0.04, -0.11);
+    lidarGroup.add(belt);
+
+    const lidarPedestal = new THREE.Mesh(new THREE.CylinderGeometry(0.38, 0.42, 0.16, 24), new THREE.MeshStandardMaterial({ color: 0x1e293b, metalness: 0.8 }));
+    lidarPedestal.position.y = -0.05;
+    lidarGroup.add(lidarPedestal);
+    interactiveMeshes.push(lidarPedestal);
+    lidarPedestal.userData.parentGroup = lidarGroup;
+
+    const lidarTurret = new THREE.Mesh(new THREE.CylinderGeometry(0.36, 0.36, 0.22, 32), new THREE.MeshStandardMaterial({ color: 0x0f172a, metalness: 0.85, roughness: 0.2 }));
+    lidarTurret.position.y = 0.14;
+    lidarTurret.castShadow = true;
+    lidarGroup.add(lidarTurret);
+    interactiveMeshes.push(lidarTurret);
+    lidarTurret.userData.parentGroup = lidarGroup;
+
+    const laserAperture = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.08, 0.06), new THREE.MeshBasicMaterial({ color: 0xdc2626 }));
+    laserAperture.position.set(0, 0.14, 0.34);
+    lidarTurret.add(laserAperture);
+
+    const laserBeam = new THREE.Mesh(
+      new THREE.ConeGeometry(5.0, 0.02, 32, 1, true, 0, Math.PI / 4),
+      new THREE.MeshBasicMaterial({ color: 0xdc2626, transparent: true, opacity: 0.28, side: THREE.DoubleSide })
+    );
+    laserBeam.rotation.x = Math.PI / 2;
+    laserBeam.position.set(0, 0.14, 0);
+    lidarTurret.add(laserBeam);
+
+    robotRoot.add(lidarGroup);
+    explodedParts.push(lidarGroup);
+
+    // --- F. CAMERA (Sony IMX219 & Giá Nhôm Xanh) ---
+    const cameraGroup = new THREE.Group();
+    cameraGroup.userData = {
+      name: "Camera Sony IMX219 & Giá Nhôm Xanh",
+      key: "camera",
+      role: "Thị Giác AI 160° FOV & Cáp Dẹt MIPI CSI-2",
+      desc: "Sony IMX219 8MP | 160° FOV | CSI-2 Interface Direct to GPU. Gắn trên giá đỡ nhôm anodized xanh lá có 2 ốc siết khía bạc điều chỉnh góc nghiêng. Cáp dẹt trắng 15-pin FFC dẫn trực tiếp vào bộ xử lý ISP của Jetson Nano với độ trễ xấp xỉ bằng 0.",
+      specs: [
+        { k: "Cảm biến hình ảnh:", v: "Sony IMX219 8 Megapixel CMOS" },
+        { k: "Góc nhìn quang học:", v: "160° Fisheye Góc Siêu Rộng" },
+        { k: "Khung giá đỡ:", v: "Nhôm Anodized Xanh Chỉnh Độ Nghiêng" },
+        { k: "Ốc định vị góc:", v: "Cặp Ốc Khía Bạc Siết Tay (M3 Thumbscrews)" },
+        { k: "Giao diện tín hiệu:", v: "Cáp dẹt 15-pin MIPI CSI-2 Hardware ISP" }
+      ],
+      photoIds: [
+        "1OyDR9IJL9ciRAUnatfnethxVb4iv2Vxb",
+        "1jt53bwVHdold1NJnfJpEdKu6_wdleGIj",
+        "1EirD6b-xstrFnb6Hx6li2-KNowte0HX0",
+        "1I7Dhsz1n3PrVfBis5wyZvJh7YaGv1MZV"
+      ],
+      origPos: new THREE.Vector3(0, 0.72, 1.15),
+      explodedPos: new THREE.Vector3(0, 0.72, 1.95)
+    };
+    cameraGroup.position.copy(cameraGroup.userData.origPos);
+
+    const camBracket = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.46, 0.04), new THREE.MeshStandardMaterial({ color: 0x059669, metalness: 0.8, roughness: 0.25 }));
+    camBracket.rotation.x = -0.25;
+    cameraGroup.add(camBracket);
+    interactiveMeshes.push(camBracket);
+    camBracket.userData.parentGroup = cameraGroup;
+
+    const thumbScrewMat = new THREE.MeshStandardMaterial({ color: 0xe2e8f0, metalness: 0.95 });
+    const thumbScrewL = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.08, 12), thumbScrewMat);
+    thumbScrewL.rotation.z = Math.PI / 2;
+    thumbScrewL.position.set(-0.16, 0.12, 0.08);
+    cameraGroup.add(thumbScrewL);
+
+    const thumbScrewR = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.08, 12), thumbScrewMat);
+    thumbScrewR.rotation.z = Math.PI / 2;
+    thumbScrewR.position.set(0.16, 0.12, 0.08);
+    cameraGroup.add(thumbScrewR);
+
+    const camBox = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.28, 0.15), new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.3 }));
+    camBox.position.set(0, 0.12, 0.08);
+    camBox.rotation.x = -0.25;
+    cameraGroup.add(camBox);
+    interactiveMeshes.push(camBox);
+    camBox.userData.parentGroup = cameraGroup;
+
+    const lens = new THREE.Mesh(new THREE.CylinderGeometry(0.085, 0.085, 0.12, 16), new THREE.MeshStandardMaterial({ color: 0x0284c7, metalness: 0.9, roughness: 0.1 }));
+    lens.rotation.x = Math.PI / 2 - 0.25;
+    lens.position.set(0, 0.12, 0.18);
+    cameraGroup.add(lens);
+    interactiveMeshes.push(lens);
+    lens.userData.parentGroup = cameraGroup;
+
+    const ffcCable = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.005, 0.45), new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.8 }));
+    ffcCable.rotation.x = 0.35;
+    ffcCable.position.set(0, 0.05, -0.15);
+    cameraGroup.add(ffcCable);
+
+    robotRoot.add(cameraGroup);
+    explodedParts.push(cameraGroup);
+
+    // ==========================================
+    // 6. DÒNG CHẢY HẠT DỮ LIỆU & HẠT BỤI BÁNH XE
+    // ==========================================
+    const numParticles = 28;
+    const particlePool = [];
+    const particleMat = new THREE.MeshBasicMaterial({ color: 0x0284c7, transparent: true, opacity: 0.95 });
+    const particleGeo = new THREE.SphereGeometry(0.042, 12, 12);
+    const dataFlowGroup = new THREE.Group();
+    robotRoot.add(dataFlowGroup);
+
+    for (let i = 0; i < numParticles; i++) {
+      const p = new THREE.Mesh(particleGeo, particleMat.clone());
+      const isI2c = i % 2 === 0;
+      p.userData = {
+        isI2c,
+        progress: (i / numParticles),
+        offsetLateral: isI2c ? -0.28 : 0.28,
+        speedScale: 1.0
+      };
+      dataFlowGroup.add(p);
+      particlePool.push(p);
+    }
+    let particleFlowSpeed = 0.015;
+
+    // HẠT BỤI ĐẤT PHUN SAU BÁNH XE (WHEEL DUST PARTICLES)
+    const dustCount = 24;
+    const dustPool = [];
+    const dustMat = new THREE.MeshBasicMaterial({ color: 0xd4a373, transparent: true, opacity: 0.5 });
+    const dustGeo = new THREE.SphereGeometry(0.06, 8, 8);
+    const dustGroup = new THREE.Group();
+    scene.add(dustGroup);
+
+    for (let i = 0; i < dustCount; i++) {
+      const d = new THREE.Mesh(dustGeo, dustMat.clone());
+      d.visible = false;
+      d.userData = { life: 0, maxLife: 0.8, vx: 0, vy: 0, vz: 0 };
+      dustGroup.add(d);
+      dustPool.push(d);
+    }
+
+    function emitDustParticle(x, y, z) {
+      const p = dustPool.find(dp => !dp.visible);
+      if (!p) return;
+      p.position.set(x + (Math.random() - 0.5) * 0.4, y + 0.05, z + (Math.random() - 0.5) * 0.4);
+      p.visible = true;
+      p.scale.setScalar(0.4 + Math.random() * 0.6);
+      p.userData.life = 0;
+      p.userData.maxLife = 0.4 + Math.random() * 0.4;
+      p.userData.vx = (Math.random() - 0.5) * 0.3;
+      p.userData.vy = 0.3 + Math.random() * 0.4;
+      p.userData.vz = (Math.random() - 0.5) * 0.3;
+    }
+
+    // ==========================================
+    // 7. HỆ THỐNG GIA TỐC TĂNG DẦN & VẬT LÝ VƯỢT ĐỊA HÌNH
+    // ==========================================
+    const robotState = {
+      x: 0,
+      y: 0.35,
+      z: 0,
+      yaw: 0,
+      linearVel: 0,
+      angularVel: 0,
+      targetLinear: 0,
+      targetAngular: 0,
+      throttle: 0, // 0.0 đến 1.0 (hoặc 1.45 khi Turbo Boost)
+      baseMaxSpeed: 0.85, // m/s
+      boostMaxSpeed: 1.65, // m/s Turbo
+      maxTurnSpeed: 1.85, // rad/s
+      friction: 0.94,
+      wheelRadius: 0.36,
+      slopeAngle: 0,
+      batteryVolts: 12.45,
+      batteryPct: 95
+    };
+
+    const keyState = { up: false, down: false, left: false, right: false, shift: false };
+
+    window.addEventListener('keydown', (e) => {
+      if (document.activeElement === document.getElementById('terminal-input')) {
+        if (e.key === 'Enter') executeTerminalCommand();
+        return;
+      }
+      if (e.key === 'Shift') keyState.shift = true;
+      if (e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W') { keyState.up = true; setDpadActive('dpad-up', true); }
+      if (e.key === 'ArrowDown' || e.key === 's' || e.key === 'S') { keyState.down = true; }
+      if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') { keyState.left = true; setDpadActive('dpad-left', true); }
+      if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') { keyState.right = true; setDpadActive('dpad-right', true); }
+      if (e.key === ' ' || e.key === 'Spacebar') emergencyStop();
+    });
+
+    window.addEventListener('keyup', (e) => {
+      if (document.activeElement === document.getElementById('terminal-input')) return;
+      if (e.key === 'Shift') keyState.shift = false;
+      if (e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W') { keyState.up = false; setDpadActive('dpad-up', false); }
+      if (e.key === 'ArrowDown' || e.key === 's' || e.key === 'S') { keyState.down = false; }
+      if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') { keyState.left = false; setDpadActive('dpad-left', false); }
+      if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') { keyState.right = false; setDpadActive('dpad-right', false); }
+    });
+
+    function setDpadActive(id, active) {
+      const btn = document.getElementById(id);
+      if (btn) btn.classList.toggle('pressed', active);
+    }
+
+    function setupVirtualDpad(btnId, downFn, upFn) {
+      const btn = document.getElementById(btnId);
+      if (!btn) return;
+      const start = (e) => { e.preventDefault(); downFn(); btn.classList.add('pressed'); };
+      const end = (e) => { e.preventDefault(); upFn(); btn.classList.remove('pressed'); };
+      btn.addEventListener('pointerdown', start);
+      btn.addEventListener('pointerup', end);
+      btn.addEventListener('pointerleave', end);
+    }
+
+    setupVirtualDpad('dpad-up', () => { keyState.up = true; }, () => { keyState.up = false; });
+    setupVirtualDpad('dpad-left', () => { keyState.left = true; }, () => { keyState.left = false; });
+    setupVirtualDpad('dpad-right', () => { keyState.right = true; }, () => { keyState.right = false; });
+    document.getElementById('dpad-stop').addEventListener('click', emergencyStop);
+
+    function emergencyStop() {
+      robotState.throttle = 0;
+      robotState.targetLinear = 0;
+      robotState.targetAngular = 0;
+      robotState.linearVel = 0;
+      robotState.angularVel = 0;
+      keyState.up = keyState.down = keyState.left = keyState.right = false;
+      logTerminal(`[STOP] Phanh dừng khẩn cấp via /cmd_vel.`, 'warn');
+      playAudioBeep(260);
+    }
+
+    // ==========================================
+    // 8. COMMAND CONSOLE DÒNG LỆNH ROS (/cmd_vel)
+    // ==========================================
+    const termInput = document.getElementById('terminal-input');
+    const termLogContainer = document.getElementById('term-log-container');
+    const btnTermSend = document.getElementById('btn-term-send');
+
+    btnTermSend.addEventListener('click', executeTerminalCommand);
+
+    function logTerminal(msg, type = 'info') {
+      const row = document.createElement('div');
+      row.className = `term-log ${type}`;
+      row.textContent = msg;
+      termLogContainer.appendChild(row);
+      termLogContainer.scrollTop = termLogContainer.scrollHeight;
+    }
+
+    let autoMission = null;
+
+    function executeTerminalCommand() {
+      const raw = termInput.value.trim();
+      if (!raw) return;
+      termInput.value = '';
+
+      logTerminal(`jetbot@terrain:~$ ${raw}`, 'user');
+      const parts = raw.toLowerCase().split(/\s+/);
+      const cmd = parts[0];
+
+      if (cmd === 'help') {
+        logTerminal(`--- DANH MỤC LỆNH ROS /cmd_vel ---`, 'info');
+        logTerminal(`• move forward [m] hoặc forward [m]: Chạy tiến tăng dần tốc độ (vd: forward 4)`, 'info');
+        logTerminal(`• backward [m]: Lùi xe khoảng cách [m]`, 'info');
+        logTerminal(`• turn left [deg] / turn right [deg]: Quay góc (vd: turn left 90)`, 'info');
+        logTerminal(`• stop: Dừng khẩn cấp mọi chuyển động`, 'info');
+        logTerminal(`• speed [0.1-2.0]: Đổi giới hạn tốc độ tối đa`, 'info');
+        logTerminal(`• reset: Đưa xe về vị trí xuất phát (0, 0)`, 'info');
+        logTerminal(`• clear: Xóa màn hình console`, 'info');
+      } else if (cmd === 'clear') {
+        termLogContainer.innerHTML = '';
+      } else if (cmd === 'stop') {
+        autoMission = null;
+        emergencyStop();
+      } else if (cmd === 'reset') {
+        autoMission = null;
+        robotState.x = 0;
+        robotState.z = 0;
+        robotState.yaw = 0;
+        robotState.linearVel = 0;
+        robotState.angularVel = 0;
+        robotState.throttle = 0;
+        logTerminal(`[ODOM] Đã reset vị trí xe về tọa độ gốc (0.0, 0.0).`, 'success');
+        playAudioBeep(520);
+      } else if (cmd === 'speed') {
+        const spd = parseFloat(parts[1]);
+        if (!isNaN(spd) && spd >= 0.1 && spd <= 3.0) {
+          robotState.baseMaxSpeed = spd;
+          logTerminal(`[PARAM] Đã cập nhật base_speed = ${spd.toFixed(2)} m/s`, 'success');
+        } else {
+          logTerminal(`[ERROR] Vui lòng nhập tốc độ từ 0.1 đến 2.5 (vd: speed 1.2)`, 'error');
+        }
+      } else if (cmd === 'move' || cmd === 'forward' || cmd === 'backward') {
+        let dist = 1.0;
+        let isForward = true;
+        if (cmd === 'move') {
+          const dir = parts[1];
+          dist = parseFloat(parts[2]) || 1.0;
+          isForward = (dir !== 'backward' && dir !== 'back');
+        } else if (cmd === 'backward') {
+          dist = parseFloat(parts[1]) || 1.0;
+          isForward = false;
+        } else {
+          dist = parseFloat(parts[1]) || 1.0;
+          isForward = true;
+        }
+
+        autoMission = {
+          type: 'drive',
+          isForward,
+          targetDist: dist,
+          startX: robotState.x,
+          startZ: robotState.z
+        };
+        logTerminal(`[EXEC] Xe đang ${isForward ? 'tiến' : 'lùi'} quãng đường ${dist}m trên địa hình...`, 'info');
+        playAudioBeep(680);
+      } else if (cmd === 'turn') {
+        const dir = parts[1];
+        const deg = parseFloat(parts[2]) || 90;
+        const rad = (deg * Math.PI) / 180;
+        const isLeft = (dir === 'left');
+
+        autoMission = {
+          type: 'turn',
+          isLeft,
+          targetYawDelta: rad,
+          startYaw: robotState.yaw
+        };
+        logTerminal(`[EXEC] Đang quay ${isLeft ? 'trái' : 'phải'} góc ${deg}°...`, 'info');
+        playAudioBeep(620);
+      } else {
+        logTerminal(`[ERROR] Lệnh '${raw}' không tồn tại. Gõ 'help' để xem hướng dẫn.`, 'error');
+      }
+    }
+
+    // ==========================================
+    // 9. RAYCASTING & CLICK CHỌN LINH KIỆN
+    // ==========================================
+    const raycaster = new THREE.Raycaster();
+    const mouse = new THREE.Vector2();
+    const tooltip = document.getElementById('hover-tooltip');
+    let hoveredMesh = null;
+    let selectedGroup = jetsonGroup;
+
+    function onPointerMove(e) {
+      mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+      mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+
+      raycaster.setFromCamera(mouse, camera);
+      const intersects = raycaster.intersectObjects(interactiveMeshes, false);
+
+      if (intersects.length > 0) {
+        const hit = intersects[0].object;
+        if (hoveredMesh !== hit) {
+          if (hoveredMesh && hoveredMesh.material.emissive) {
+            hoveredMesh.material.emissive.setHex(0x000000);
+          }
+          hoveredMesh = hit;
+          if (hoveredMesh.material.emissive) {
+            hoveredMesh.material.emissive.setHex(0x0284c7);
+            hoveredMesh.material.emissiveIntensity = 0.45;
+          }
+        }
+        const parentGrp = hit.userData.parentGroup;
+        tooltip.style.display = 'block';
+        tooltip.style.left = `${e.clientX}px`;
+        tooltip.style.top = `${e.clientY}px`;
+        tooltip.textContent = parentGrp ? parentGrp.userData.name : "Linh kiện JetBot";
+        container.style.cursor = 'pointer';
+      } else {
+        if (hoveredMesh && hoveredMesh.material.emissive) {
+          hoveredMesh.material.emissive.setHex(0x000000);
+          hoveredMesh = null;
+        }
+        tooltip.style.display = 'none';
+        container.style.cursor = 'grab';
+      }
+    }
+
+    function onPointerDown(e) {
+      raycaster.setFromCamera(mouse, camera);
+      const intersects = raycaster.intersectObjects(interactiveMeshes, false);
+      if (intersects.length > 0) {
+        const parentGrp = intersects[0].object.userData.parentGroup;
+        if (parentGrp) {
+          updateInspector(parentGrp);
+          playAudioBeep(650);
+        }
+      }
+    }
+
+    window.addEventListener('pointermove', onPointerMove);
+    window.addEventListener('pointerdown', onPointerDown);
+
+    function updateInspector(group) {
+      selectedGroup = group;
+      const data = group.userData;
+
+      document.getElementById('part-title').textContent = data.name;
+      document.getElementById('part-sub').textContent = data.role;
+      document.getElementById('part-desc').textContent = data.desc;
+
+      const iconEl = document.getElementById('part-icon');
+      if (data.key === 'jetson') iconEl.textContent = '🧠';
+      else if (data.key === 'rp2040') iconEl.textContent = '⚡';
+      else if (data.key === 'lidar') iconEl.textContent = '📡';
+      else if (data.key === 'camera') iconEl.textContent = '📷';
+      else if (data.key === 'wheels') iconEl.textContent = '⚙️';
+      else iconEl.textContent = '🔋';
+
+      const specsContainer = document.getElementById('part-specs');
+      specsContainer.innerHTML = '';
+      if (data.specs) {
+        data.specs.forEach(s => {
+          const row = document.createElement('div');
+          row.className = 'spec-row';
+          row.innerHTML = `<span class="spec-key">${s.k}</span><span class="spec-val">${s.v}</span>`;
+          specsContainer.appendChild(row);
+        });
+      }
+
+      const photoBox = document.getElementById('part-photo-box');
+      const mainPhoto = document.getElementById('part-main-photo');
+      const photoCaption = document.getElementById('part-photo-caption');
+      const thumbStrip = document.getElementById('part-thumb-strip');
+      const btnDriveLink = document.getElementById('btn-view-drive-file');
+
+      thumbStrip.innerHTML = '';
+
+      if (data.photoIds && data.photoIds.length > 0) {
+        const firstPhotoId = data.photoIds[0];
+        mainPhoto.src = `https://lh3.googleusercontent.com/d/${firstPhotoId}=w1000`;
+        mainPhoto.dataset.fullSrc = `https://lh3.googleusercontent.com/d/${firstPhotoId}=w1600`;
+        photoCaption.textContent = DRIVE_PHOTO_META[firstPhotoId] || data.name;
+        btnDriveLink.href = `https://drive.google.com/file/d/${firstPhotoId}/view`;
+
+        data.photoIds.forEach((pid, idx) => {
+          const caption = DRIVE_PHOTO_META[pid] || data.name;
+          const thumb = document.createElement('div');
+          thumb.className = `thumb-item ${idx === 0 ? 'active' : ''}`;
+          thumb.title = caption;
+          thumb.innerHTML = `<img src="https://lh3.googleusercontent.com/d/${pid}=w240" alt="${caption}" />`;
+          thumb.addEventListener('click', (ev) => {
+            ev.stopPropagation();
+            mainPhoto.src = `https://lh3.googleusercontent.com/d/${pid}=w1000`;
+            mainPhoto.dataset.fullSrc = `https://lh3.googleusercontent.com/d/${pid}=w1600`;
+            photoCaption.textContent = caption;
+            btnDriveLink.href = `https://drive.google.com/file/d/${pid}/view`;
+            document.querySelectorAll('.thumb-item').forEach(t => t.classList.remove('active'));
+            thumb.classList.add('active');
+          });
+          thumbStrip.appendChild(thumb);
+        });
+
+        photoBox.onclick = () => {
+          openPhotoEnlarge(mainPhoto.dataset.fullSrc || mainPhoto.src, btnDriveLink.href);
+        };
+      }
+    }
+
+    document.getElementById('legend-jetson').onclick = () => updateInspector(jetsonGroup);
+    document.getElementById('legend-rp2040').onclick = () => updateInspector(rp2040Group);
+    document.getElementById('legend-lidar').onclick = () => updateInspector(lidarGroup);
+    document.getElementById('legend-chassis').onclick = () => updateInspector(chassisGroup);
+    document.getElementById('legend-wheels').onclick = () => updateInspector(wheelLeft);
+    document.getElementById('legend-camera').onclick = () => updateInspector(cameraGroup);
+
+    // ==========================================
+    // 10. TÁCH TẦNG PHẦN CỨNG (EXPLODED VIEW TOGGLE)
+    // ==========================================
+    let isExploded = false;
+    const btnExplode = document.getElementById('btn-explode');
+    const explodeText = document.getElementById('explode-text');
+
+    btnExplode.addEventListener('click', () => {
+      isExploded = !isExploded;
+      btnExplode.classList.toggle('active', isExploded);
+      explodeText.textContent = isExploded ? 'Thu Gọn Lắp' : 'Tách Tầng';
+      playAudioBeep(isExploded ? 780 : 420);
+
+      explodedParts.forEach(part => {
+        const targetPos = isExploded ? part.userData.explodedPos : part.userData.origPos;
+        gsap.to(part.position, {
+          x: targetPos.x,
+          y: targetPos.y,
+          z: targetPos.z,
+          duration: 1.25,
+          ease: 'power3.inOut'
+        });
+      });
+    });
+
+    // ==========================================
+    // 11. CHUYỂN ĐỔI HIỆU NĂNG AI (FP32 VS TENSORRT)
+    // ==========================================
+    const aiToggle = document.getElementById('ai-toggle');
+    const valLatency = document.getElementById('val-latency');
+    const valTotalResponse = document.getElementById('val-total-response');
+    const perfBadge = document.getElementById('perf-badge');
+    const statusBeacon = document.getElementById('status-beacon');
+    const labelFp32 = document.getElementById('label-fp32');
+    const labelFp16 = document.getElementById('label-fp16');
+
+    function applyAiPerformance(isTensorRt) {
+      if (isTensorRt) {
+        perfBadge.textContent = 'TỐI ƯU FP16';
+        perfBadge.className = 'badge-mode badge-fp16';
+        statusBeacon.style.background = '#059669';
+        statusBeacon.style.boxShadow = '0 0 12px rgba(5, 150, 105, 0.7)';
+
+        labelFp16.style.color = '#059669';
+        labelFp16.style.fontWeight = '800';
+        labelFp32.style.color = 'var(--text-muted)';
+        labelFp32.style.fontWeight = '600';
+
+        gsap.to(valLatency, { textContent: '39.63', duration: 0.6, snap: { textContent: 0.01 } });
+        gsap.to(valTotalResponse, { textContent: '121.78', duration: 0.8, snap: { textContent: 0.01 } });
+
+        particleFlowSpeed = 0.018;
+        particlePool.forEach(p => { p.material.color.setHex(0x0284c7); });
+      } else {
+        perfBadge.textContent = 'NGHẼN CỔ CHAI FP32';
+        perfBadge.className = 'badge-mode badge-fp32';
+        statusBeacon.style.background = '#dc2626';
+        statusBeacon.style.boxShadow = '0 0 12px rgba(220, 38, 38, 0.7)';
+
+        labelFp32.style.color = '#ea580c';
+        labelFp32.style.fontWeight = '800';
+        labelFp16.style.color = 'var(--text-muted)';
+        labelFp16.style.fontWeight = '600';
+
+        gsap.to(valLatency, { textContent: '98.82', duration: 0.6, snap: { textContent: 0.01 } });
+        gsap.to(valTotalResponse, { textContent: '639.73', duration: 0.8, snap: { textContent: 0.01 } });
+
+        particleFlowSpeed = 0.004;
+        particlePool.forEach(p => { p.material.color.setHex(0xea580c); });
+      }
+    }
+
+    aiToggle.addEventListener('change', () => {
+      applyAiPerformance(aiToggle.checked);
+      playAudioBeep(aiToggle.checked ? 880 : 320);
+    });
+
+    // ==========================================
+    // 12. HỆ THỐNG GÓC NHÌN CAMERA LINH HOẠT
+    // ==========================================
+    let currentCameraPreset = 'chase';
+    let isAutoRotating = false;
+
+    function setCameraPreset(preset) {
+      currentCameraPreset = preset;
+      document.querySelectorAll('.btn-preset').forEach(b => b.classList.remove('active'));
+      const activeBtn = document.getElementById(`cam-${preset}`);
+      if (activeBtn) activeBtn.classList.add('active');
+
+      if (preset === 'orbit') {
+        controls.enabled = true;
+        gsap.to(camera.position, { x: robotState.x + 5.5, y: robotState.y + 3.8, z: robotState.z + 5.5, duration: 1.2, ease: 'power2.inOut' });
+        gsap.to(controls.target, { x: robotState.x, y: robotState.y + 0.6, z: robotState.z, duration: 1.2, ease: 'power2.inOut' });
+      } else if (preset === 'top') {
+        controls.enabled = true;
+        gsap.to(camera.position, { x: robotState.x + 0.01, y: robotState.y + 24.0, z: robotState.z + 0.01, duration: 1.2, ease: 'power2.inOut' });
+        gsap.to(controls.target, { x: robotState.x, y: robotState.y, z: robotState.z, duration: 1.2, ease: 'power2.inOut' });
+      }
+    }
+
+    document.getElementById('cam-chase').onclick = () => setCameraPreset('chase');
+    document.getElementById('cam-fpv').onclick = () => setCameraPreset('fpv');
+    document.getElementById('cam-orbit').onclick = () => setCameraPreset('orbit');
+    document.getElementById('cam-top').onclick = () => setCameraPreset('top');
+
+    const btnAutoRotate = document.getElementById('cam-autorotate');
+    btnAutoRotate.onclick = () => {
+      isAutoRotating = !isAutoRotating;
+      btnAutoRotate.classList.toggle('active', isAutoRotating);
+    };
+
+    // ==========================================
+    // 13. MODAL PHÓNG TO ẢNH MINH HỌA FULLSCREEN
+    // ==========================================
+    const photoEnlargeModal = document.getElementById('photo-enlarge-modal');
+    const photoEnlargeImg = document.getElementById('photo-enlarge-img');
+    const btnEnlargeDriveLink = document.getElementById('btn-enlarge-drive-link');
+    const btnCloseEnlarge = document.getElementById('btn-close-enlarge');
+
+    function openPhotoEnlarge(imgSrc, driveUrl) {
+      photoEnlargeImg.src = imgSrc;
+      btnEnlargeDriveLink.href = driveUrl;
+      photoEnlargeModal.style.display = 'flex';
+    }
+
+    btnCloseEnlarge.onclick = () => { photoEnlargeModal.style.display = 'none'; };
+    photoEnlargeModal.onclick = (e) => {
+      if (e.target === photoEnlargeModal) photoEnlargeModal.style.display = 'none';
+    };
+
+    let audioCtx = null;
+    function playAudioBeep(freq = 600) {
+      try {
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+        gain.gain.setValueAtTime(0.02, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 0.12);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.13);
+      } catch (e) {}
+    }
+
+    // ==========================================
+    // 14. VẼ RADAR BẢN ĐỒ THẾ GIỚI MỞ THỜI GIAN THỰC
+    // ==========================================
+    const radarCanvas = document.getElementById('radar-canvas');
+    const radarCtx = radarCanvas.getContext('2d');
+    const radarSector = document.getElementById('radar-sector');
+
+    function drawRadar() {
+      const w = radarCanvas.width;
+      const h = radarCanvas.height;
+      radarCtx.clearRect(0, 0, w, h);
+
+      // Tâm radar là xe JetBot
+      radarCtx.save();
+      radarCtx.translate(w / 2, h / 2);
+
+      // Vòng tròn tầm quét radar
+      radarCtx.strokeStyle = 'rgba(2, 132, 199, 0.25)';
+      radarCtx.lineWidth = 1;
+      radarCtx.beginPath();
+      radarCtx.arc(0, 0, 16, 0, Math.PI * 2);
+      radarCtx.arc(0, 0, 28, 0, Math.PI * 2);
+      radarCtx.stroke();
+
+      // Điểm mốc xuất phát
+      const relStartX = (0 - robotState.x) * 0.55;
+      const relStartZ = (0 - robotState.z) * 0.55;
+      radarCtx.fillStyle = '#059669';
+      radarCtx.beginPath();
+      radarCtx.arc(relStartX, relStartZ, 2.5, 0, Math.PI * 2);
+      radarCtx.fill();
+
+      // Các điểm đá / chướng ngại vật lân cận
+      rockCoords.forEach(([rx, rz]) => {
+        const dx = (rx - robotState.x) * 0.55;
+        const dz = (rz - robotState.z) * 0.55;
+        if (Math.hypot(dx, dz) < 32) {
+          radarCtx.fillStyle = 'rgba(100, 116, 139, 0.7)';
+          radarCtx.beginPath();
+          radarCtx.arc(dx, dz, 2, 0, Math.PI * 2);
+          radarCtx.fill();
+        }
+      });
+
+      // Mũi tên định hướng xe JetBot
+      radarCtx.rotate(-robotState.yaw + Math.PI);
+      radarCtx.fillStyle = '#0284c7';
+      radarCtx.beginPath();
+      radarCtx.moveTo(0, -6);
+      radarCtx.lineTo(4, 5);
+      radarCtx.lineTo(-4, 5);
+      radarCtx.closePath();
+      radarCtx.fill();
+
+      radarCtx.restore();
+
+      // Cập nhật tên khu vực
+      const d = Math.hypot(robotState.x, robotState.z);
+      if (d < 8) radarSector.textContent = "Vùng: Trạm Xuất Phát";
+      else if (robotState.x > 10) radarSector.textContent = "Vùng: Sườn Cầu Gỗ";
+      else if (robotState.z > 12) radarSector.textContent = "Vùng: Đồi Thử Nghiệm Slalom";
+      else if (robotState.y > 2.5) radarSector.textContent = "Vùng: Đỉnh Đồi Vách Đá";
+      else radarSector.textContent = "Vùng: Bình Nguyên Thung Lũng";
+    }
+
+    // ==========================================
+    // 15. VÒNG LẶP RENDER HOẠT HỌA & VẬT LÝ GIA TỐC TĂNG DẦN
+    // ==========================================
+    const clock = new THREE.Clock();
+
+    const valLinearX = document.getElementById('val-linear-x');
+    const valLinearKmh = document.getElementById('val-linear-kmh');
+    const valAngularZ = document.getElementById('val-angular-z');
+    const valGearMode = document.getElementById('val-gear-mode');
+    const valThrottlePct = document.getElementById('val-throttle-pct');
+    const throttleBar = document.getElementById('throttle-bar');
+    const valPosXYZ = document.getElementById('val-pos-xyz');
+    const valYaw = document.getElementById('val-yaw');
+    const valSlope = document.getElementById('val-slope');
+    const valVoltage = document.getElementById('val-voltage');
+    const valBatteryPct = document.getElementById('val-battery-pct');
+    const valCurrentDraw = document.getElementById('val-current-draw');
+
+    function animate() {
+      requestAnimationFrame(animate);
+
+      const delta = Math.min(clock.getDelta(), 0.1);
+      const elapsed = clock.getElapsedTime();
+
+      // 1. GIA TỐC TĂNG DẦN (PROGRESSIVE THROTTLE RAMP-UP)
+      const isBoosting = keyState.shift;
+      const targetMaxThrottle = isBoosting ? 1.45 : 1.0;
+      const rampUpRate = 0.52; // Tăng dần êm ái trong ~2 giây đạt 100%
+      const rampDownRate = 1.35; // Giảm ga tự nhiên khi nhả phím
+
+      if (autoMission) {
+        if (autoMission.type === 'drive') {
+          const traveled = Math.hypot(robotState.x - autoMission.startX, robotState.z - autoMission.startZ);
+          if (traveled >= autoMission.targetDist) {
+            robotState.throttle = 0;
+            robotState.targetLinear = 0;
+            logTerminal(`[DONE] Đã hoàn thành khoảng cách ${autoMission.targetDist.toFixed(2)}m.`, 'success');
+            autoMission = null;
+          } else {
+            // Tự động tăng tốc rồi giảm tốc nhẹ khi sắp tới đích
+            const remaining = autoMission.targetDist - traveled;
+            const autoThrot = Math.min(1.0, Math.max(0.25, remaining / 1.5));
+            robotState.throttle = (autoMission.isForward ? 1 : -0.7) * autoThrot;
+            robotState.targetAngular = 0;
+          }
+        } else if (autoMission.type === 'turn') {
+          const yawDiff = Math.abs(robotState.yaw - autoMission.startYaw);
+          if (yawDiff >= autoMission.targetYawDelta) {
+            robotState.targetAngular = 0;
+            logTerminal(`[DONE] Đã hoàn thành góc quay ${(autoMission.targetYawDelta * 180 / Math.PI).toFixed(1)}°.`, 'success');
+            autoMission = null;
+          } else {
+            robotState.targetAngular = (autoMission.isLeft ? 1 : -1) * robotState.maxTurnSpeed;
+            robotState.throttle = 0;
+          }
+        }
+      } else {
+        // Điều khiển thủ công bằng bàn phím WASD / Mũi Tên
+        if (keyState.up) {
+          robotState.throttle = Math.min(targetMaxThrottle, robotState.throttle + rampUpRate * delta);
+        } else if (keyState.down) {
+          robotState.throttle = Math.max(-0.65, robotState.throttle - rampUpRate * delta);
+        } else {
+          // Nhả phím: Bướm ga hồi dần về 0
+          if (robotState.throttle > 0) {
+            robotState.throttle = Math.max(0, robotState.throttle - rampDownRate * delta);
+          } else if (robotState.throttle < 0) {
+            robotState.throttle = Math.min(0, robotState.throttle + rampDownRate * delta);
+          }
+        }
+
+        if (keyState.left) {
+          robotState.targetAngular = robotState.maxTurnSpeed;
+        } else if (keyState.right) {
+          robotState.targetAngular = -robotState.maxTurnSpeed;
+        } else {
+          robotState.targetAngular = 0;
+        }
+      }
+
+      // Vận tốc mục tiêu tỷ lệ với bướm ga tăng dần
+      const currentSpeedLimit = isBoosting ? robotState.boostMaxSpeed : robotState.baseMaxSpeed;
+      robotState.targetLinear = robotState.throttle * currentSpeedLimit;
+
+      // 2. Độ dốc địa hình và ảnh hưởng vật lý
+      const currentNormal = getTerrainNormal(robotState.x, robotState.z);
+      const slopeAngleRad = Math.acos(Math.min(1, Math.max(-1, currentNormal.y)));
+      robotState.slopeAngle = (slopeAngleRad * 180) / Math.PI;
+
+      const fwdVec = new THREE.Vector3(Math.sin(robotState.yaw), 0, Math.cos(robotState.yaw));
+      const slopeForwardGradient = -currentNormal.dot(fwdVec);
+
+      let effectiveAcceleration = 2.4;
+      if (slopeForwardGradient > 0.08) {
+        effectiveAcceleration *= Math.max(0.4, 1.0 - slopeForwardGradient * 0.75);
+      }
+
+      // Quán tính vận tốc theo bướm ga
+      robotState.linearVel += (robotState.targetLinear - robotState.linearVel) * effectiveAcceleration * delta;
+      robotState.angularVel += (robotState.targetAngular - robotState.angularVel) * 3.5 * delta;
+
+      if (Math.abs(robotState.throttle) < 0.01) {
+        robotState.linearVel *= robotState.friction;
+      }
+      if (Math.abs(robotState.targetAngular) < 0.01) {
+        robotState.angularVel *= 0.88;
+      }
+
+      // 3. Cập nhật vị trí X, Z và hướng Yaw
+      robotState.yaw += robotState.angularVel * delta;
+      const moveDistance = robotState.linearVel * delta;
+
+      robotState.x += Math.sin(robotState.yaw) * moveDistance;
+      robotState.z += Math.cos(robotState.yaw) * moveDistance;
+
+      // 4. Độ cao Y và nghiêng xe theo sườn dốc
+      const groundY = getTerrainHeight(robotState.x, robotState.z);
+      robotState.y = groundY + 0.35;
+
+      robotRoot.position.set(robotState.x, robotState.y, robotState.z);
+
+      const targetQuat = new THREE.Quaternion();
+      const upVec = new THREE.Vector3(0, 1, 0);
+      targetQuat.setFromUnitVectors(upVec, currentNormal);
+      const yawQuat = new THREE.Quaternion().setFromAxisAngle(upVec, robotState.yaw);
+      targetQuat.multiply(yawQuat);
+      robotRoot.quaternion.slerp(targetQuat, 0.16);
+
+      // 5. Bánh xe xoay tròn theo chuyển động lăn & Phun bụi đất
+      const wheelRotSpeed = moveDistance / robotState.wheelRadius;
+      wheelMeshesToRotate.forEach(w => {
+        w.rotation.x += wheelRotSpeed * 1.8;
+      });
+
+      if (Math.abs(robotState.linearVel) > 0.12 && Math.random() < 0.45) {
+        emitDustParticle(robotState.x, robotState.y - 0.25, robotState.z);
+      }
+
+      // Cập nhật hoạt ảnh hạt bụi
+      dustPool.forEach(p => {
+        if (p.visible) {
+          p.userData.life += delta;
+          if (p.userData.life >= p.userData.maxLife) {
+            p.visible = false;
+          } else {
+            p.position.x += p.userData.vx * delta;
+            p.position.y += p.userData.vy * delta;
+            p.position.z += p.userData.vz * delta;
+            const progress = p.userData.life / p.userData.maxLife;
+            p.material.opacity = (1 - progress) * 0.45;
+            p.scale.setScalar((0.5 + progress * 0.8));
+          }
+        }
+      });
+
+      // 6. CẬP NHẬT HUD GA & VẬN TỐC TĂNG DẦN
+      valLinearX.textContent = robotState.linearVel.toFixed(2);
+      const kmh = Math.abs(robotState.linearVel * 3.6);
+      valLinearKmh.textContent = `${kmh.toFixed(1)} km/h`;
+      valAngularZ.textContent = robotState.angularVel.toFixed(2);
+
+      const displayThrottlePct = Math.round(Math.abs(robotState.throttle) * 100);
+      const motorRPM = Math.round(Math.abs(robotState.throttle) * 333);
+      valThrottlePct.textContent = `${displayThrottlePct}% (${motorRPM} RPM)`;
+      throttleBar.style.width = `${Math.min(100, displayThrottlePct / 1.45 * 100)}%`;
+      throttleBar.classList.toggle('boost', isBoosting && displayThrottlePct > 90);
+
+      if (Math.abs(robotState.throttle) < 0.05) {
+        valGearMode.textContent = "Mo (Neutral)";
+        valGearMode.style.color = "var(--text-muted)";
+      } else if (robotState.throttle > 0) {
+        valGearMode.textContent = isBoosting ? "Số D (TURBO)" : "Số D (Tiến)";
+        valGearMode.style.color = isBoosting ? "#7c3aed" : "#059669";
+      } else {
+        valGearMode.textContent = "Số R (Lùi)";
+        valGearMode.style.color = "#ea580c";
+      }
+
+      valPosXYZ.textContent = `${robotState.x.toFixed(1)}, ${robotState.y.toFixed(1)}, ${robotState.z.toFixed(1)}`;
+      let degYaw = ((robotState.yaw * 180 / Math.PI) % 360);
+      if (degYaw < 0) degYaw += 360;
+      valYaw.textContent = `${degYaw.toFixed(1)}°`;
+      valSlope.textContent = `Dốc: ${robotState.slopeAngle.toFixed(1)}°`;
+
+      const loadCurrent = 380 + Math.abs(robotState.linearVel) * 1100 + Math.abs(robotState.angularVel) * 750 + Math.max(0, slopeForwardGradient * 600);
+      const batteryDrop = (loadCurrent / 1000) * 0.02;
+      valVoltage.textContent = Math.max(11.1, robotState.batteryVolts - batteryDrop).toFixed(2);
+      valCurrentDraw.textContent = `${Math.round(loadCurrent)} mA`;
+
+      // 7. Hệ thống Camera tự động bám theo xe (Follow Camera)
+      if (currentCameraPreset === 'chase') {
+        const offsetDist = 5.6;
+        const offsetHeight = 3.2;
+        const targetCamX = robotState.x - Math.sin(robotState.yaw) * offsetDist;
+        const targetCamZ = robotState.z - Math.cos(robotState.yaw) * offsetDist;
+        const targetCamY = robotState.y + offsetHeight;
+
+        camera.position.lerp(new THREE.Vector3(targetCamX, targetCamY, targetCamZ), 0.08);
+        controls.target.lerp(new THREE.Vector3(robotState.x, robotState.y + 0.6, robotState.z), 0.1);
+        controls.enabled = false;
+      } else if (currentCameraPreset === 'fpv') {
+        const camPosX = robotState.x + Math.sin(robotState.yaw) * 1.15;
+        const camPosZ = robotState.z + Math.cos(robotState.yaw) * 1.15;
+        camera.position.set(camPosX, robotState.y + 0.45, camPosZ);
+
+        const lookTarget = new THREE.Vector3(
+          camPosX + Math.sin(robotState.yaw) * 8.0,
+          robotState.y + 0.35,
+          camPosZ + Math.cos(robotState.yaw) * 8.0
+        );
+        camera.lookAt(lookTarget);
+        controls.enabled = false;
+      } else if (currentCameraPreset === 'top') {
+        camera.position.x = robotState.x;
+        camera.position.z = robotState.z;
+        controls.target.set(robotState.x, robotState.y, robotState.z);
+        controls.enabled = true;
+      } else {
+        controls.enabled = true;
+      }
+
+      // 8. Hoạt ảnh Lidar và Quạt tản nhiệt
+      lidarTurret.rotation.y -= 7.5 * delta;
+      fanBlades.rotation.y += 18.0 * delta;
+
+      if (isAutoRotating && currentCameraPreset === 'orbit') {
+        controls.autoRotate = true;
+        controls.autoRotateSpeed = 1.2;
+      } else {
+        controls.autoRotate = false;
+      }
+
+      if (controls.enabled) controls.update();
+
+      // 9. Luồng hạt dữ liệu giữa Não bộ (Jetson) và Tiểu não (RP2040)
+      const jetsonPos = jetsonGroup.position;
+      const rp2040Pos = rp2040Group.position;
+
+      particlePool.forEach(p => {
+        p.userData.progress += particleFlowSpeed;
+        if (p.userData.progress > 1) p.userData.progress = 0;
+
+        const prg = p.userData.progress;
+        let startY, endY;
+        if (p.userData.isI2c) {
+          startY = jetsonPos.y - 0.05;
+          endY = rp2040Pos.y + 0.05;
+        } else {
+          startY = rp2040Pos.y + 0.05;
+          endY = jetsonPos.y - 0.05;
+        }
+
+        const currY = THREE.MathUtils.lerp(startY, endY, prg);
+        const currX = p.userData.offsetLateral + Math.sin(elapsed * 4 + prg * 6) * 0.03;
+        const currZ = (p.userData.isI2c ? -0.3 : 0.3) + Math.cos(elapsed * 4 + prg * 6) * 0.03;
+
+        p.position.set(currX, currY, currZ);
+        p.material.opacity = Math.sin(prg * Math.PI) * 0.95;
+      });
+
+      startRing.scale.setScalar(1 + Math.sin(elapsed * 2) * 0.03);
+
+      // 10. Vẽ Radar bản đồ mini-map
+      drawRadar();
+
+      renderer.render(scene, camera);
+    }
+
+    animate();
+
+    // ==========================================
+    // 16. XỬ LÝ THAY ĐỔI KÍCH THƯỚC CỬA SỔ
+    // ==========================================
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    // Khởi tạo mặc định
+    applyAiPerformance(true);
+    updateInspector(jetsonGroup);
+    setCameraPreset('chase');
+  </script>
+</body>
+</html>
